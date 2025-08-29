@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "next-themes";
 import keycloak from "@/lib/keycloak";
-import { useAuthStore } from "@/store/auth";
+import { useAuthStore, UserProfile } from "@/store/auth";
 import { jwtDecode } from "jwt-decode";
 import { env } from "@/env";
 import { useRouter } from "next/navigation";
@@ -35,11 +35,11 @@ function extractRoles(p: TokenPayload) {
 }
 
 /** Convierte el token en un perfil usable */
-function parseToken(token: string) {
+function parseToken(token: string): UserProfile {
   const decoded = jwtDecode<TokenPayload>(token);
   return {
     id: decoded.sub,
-    username: decoded.preferred_username,
+    username: decoded.preferred_username || "",
     email: decoded.email,
     roles: extractRoles(decoded),
   };
@@ -116,19 +116,19 @@ export default function AuthProvider({ children }: Props) {
     }, 20000);
   }, [router, setAuth, clear]);
 
-  // Variables de branding desde .env
-  const cssVars = {
-    ["--brand-primary" as any]: env.BRAND_PRIMARY,
-    ["--brand-primary-fg" as any]: env.BRAND_PRIMARY_FG,
-    ["--bg-light" as any]: env.BG_LIGHT,
-    ["--fg-light" as any]: env.FG_LIGHT,
-    ["--bg-dark" as any]: env.BG_DARK,
-    ["--fg-dark" as any]: env.FG_DARK,
-    ["--accent" as any]: env.ACCENT,
-    ["--success" as any]: env.SUCCESS,
-    ["--warning" as any]: env.WARNING,
-    ["--danger" as any]: env.DANGER,
-  } as React.CSSProperties;
+  // Variables de branding desde .env (tipado correcto sin `any`)
+  const cssVars: Record<string, string> = {
+    "--brand-primary": env.BRAND_PRIMARY,
+    "--brand-primary-fg": env.BRAND_PRIMARY_FG,
+    "--bg-light": env.BG_LIGHT,
+    "--fg-light": env.FG_LIGHT,
+    "--bg-dark": env.BG_DARK,
+    "--fg-dark": env.FG_DARK,
+    "--accent": env.ACCENT,
+    "--success": env.SUCCESS,
+    "--warning": env.WARNING,
+    "--danger": env.DANGER,
+  };
 
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
