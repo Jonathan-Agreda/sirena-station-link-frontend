@@ -7,6 +7,8 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import Image from "next/image";
 import { motion } from "framer-motion";
 
+export const dynamic = "force-dynamic";
+
 export default function ResidentPage() {
   const { data, isLoading } = useQuery({ queryKey: ["me"], queryFn: fetchMe });
 
@@ -153,7 +155,7 @@ export default function ResidentPage() {
               {/* Foto de la urbanización */}
               <div className="rounded-xl border overflow-hidden relative">
                 <Image
-                  src="/urbanitation/savali.jpg"
+                  src="/urbanitation/savali.jpeg"
                   alt={`Foto de ${data.urbanizacion?.nombre || "urbanización"}`}
                   width={1600}
                   height={900}
