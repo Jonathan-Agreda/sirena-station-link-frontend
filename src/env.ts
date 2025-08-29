@@ -6,6 +6,8 @@ export const env = {
 
   APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || "SirenaStationLink",
   SLOGAN: process.env.NEXT_PUBLIC_SLOGAN || "Alerta comunitaria al instante",
+  DEVELOPER_NAME:
+    process.env.NEXT_PUBLIC_DEVELOPER_NAME || "Ing. Jonathan Agreda, MSc.",
   COMPANY_NAME: process.env.NEXT_PUBLIC_COMPANY_NAME || "Enterpriselink",
   COMPANY_URL: process.env.NEXT_PUBLIC_COMPANY_URL || "#",
 
