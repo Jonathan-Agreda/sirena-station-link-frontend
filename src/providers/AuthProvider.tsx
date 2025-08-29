@@ -6,9 +6,9 @@ import { Toaster } from "sonner";
 import { ThemeProvider } from "next-themes";
 import keycloak from "@/lib/keycloak";
 import { useAuthStore } from "@/store/auth";
-import { jwtDecode } from "jwt-decode"; // <- named export
+import { jwtDecode } from "jwt-decode";
 import { env } from "@/env";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 type Props = { children: ReactNode };
 
@@ -19,16 +19,41 @@ type TokenPayload = {
   realm_access?: { roles?: string[] };
 };
 
+declare global {
+  interface Window {
+    __kc_inited?: boolean;
+    __kc_refresh_interval?: number;
+  }
+}
+
 export default function AuthProvider({ children }: Props) {
   const setAuth = useAuthStore((s) => s.setAuth);
   const clear = useAuthStore((s) => s.clear);
   const router = useRouter();
-  const pathname = usePathname();
 
   const qc = useMemo(() => new QueryClient(), []);
 
   useEffect(() => {
-    let isMounted = true;
+    if (typeof window === "undefined") return;
+
+    // Si ya fue inicializado (por hot reload o doble render), solo sincronizamos estado y salimos
+    if (window.__kc_inited) {
+      if (keycloak.token) {
+        const decoded = jwtDecode<TokenPayload>(keycloak.token);
+        const roles = decoded?.realm_access?.roles || [];
+        setAuth(keycloak.token, {
+          id: decoded.sub,
+          username: decoded.preferred_username,
+          email: decoded.email,
+          roles,
+        });
+      } else {
+        clear();
+      }
+      return;
+    }
+
+    window.__kc_inited = true;
 
     keycloak
       .init({
@@ -43,8 +68,6 @@ export default function AuthProvider({ children }: Props) {
           typeof window !== "undefined" ? window.location.origin : undefined,
       })
       .then((authenticated) => {
-        if (!isMounted) return;
-
         if (authenticated && keycloak.token) {
           const decoded = jwtDecode<TokenPayload>(keycloak.token);
           const roles = decoded?.realm_access?.roles || [];
@@ -56,31 +79,26 @@ export default function AuthProvider({ children }: Props) {
             roles,
           });
 
-          if (pathname === "/" || pathname.startsWith("/login")) {
+          // Redirigimos a la landing de su rol solo si está en home o login
+          const currentPath =
+            typeof window !== "undefined" ? window.location.pathname : "/";
+          if (currentPath === "/" || currentPath.startsWith("/login")) {
             if (roles.includes("RESIDENTE")) router.replace("/resident");
             else router.replace("/dashboard");
           }
         } else {
           clear();
-          if (
-            pathname.startsWith("/dashboard") ||
-            pathname.startsWith("/resident")
-          ) {
-            router.replace("/login");
-          }
         }
       })
       .catch(() => {
         clear();
-        if (
-          pathname.startsWith("/dashboard") ||
-          pathname.startsWith("/resident")
-        ) {
-          router.replace("/login");
-        }
       });
 
-    const interval = setInterval(() => {
+    // Refresh token (único intervalo global)
+    if (window.__kc_refresh_interval) {
+      clearInterval(window.__kc_refresh_interval);
+    }
+    window.__kc_refresh_interval = window.setInterval(() => {
       keycloak
         .updateToken(40)
         .then((refreshed) => {
@@ -100,13 +118,9 @@ export default function AuthProvider({ children }: Props) {
           router.replace("/login");
         });
     }, 20000);
+  }, [router, setAuth, clear]);
 
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [pathname, router, setAuth, clear]);
-
+  // Inyecta variables CSS de marca desde .env
   const cssVars = {
     ["--brand-primary" as any]: env.BRAND_PRIMARY,
     ["--brand-primary-fg" as any]: env.BRAND_PRIMARY_FG,

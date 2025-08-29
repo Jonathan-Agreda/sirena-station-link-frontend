@@ -6,10 +6,13 @@ import { env } from "@/env";
 import { useTheme } from "next-themes";
 import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useAuthStore } from "@/store/auth";
+import LogoutButton from "./LogoutButton";
 
 export default function Navbar() {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { isAuthenticated, profile } = useAuthStore();
 
   useEffect(() => setMounted(true), []);
 
@@ -28,12 +31,21 @@ export default function Navbar() {
           />
           <span className="sr-only">{env.APP_NAME}</span>
         </Link>
-        <nav className="flex items-center gap-3">
-          <Link href="/login" className="text-sm hover:underline">
-            Ingresar
-          </Link>
 
-          {/* Guard de montaje: mientras no monta, renderizamos un placeholder neutro */}
+        <nav className="flex items-center gap-3">
+          {isAuthenticated ? (
+            <>
+              <span className="text-sm opacity-80 hidden sm:inline">
+                {profile?.username}
+              </span>
+              <LogoutButton />
+            </>
+          ) : (
+            <Link href="/login" className="text-sm hover:underline">
+              Ingresar
+            </Link>
+          )}
+
           <button
             onClick={toggle}
             className="rounded-lg p-2 hover:bg-[color-mix(in_oklab,transparent,black_10%)] dark:hover:bg-[color-mix(in_oklab,transparent,white_10%)]"
