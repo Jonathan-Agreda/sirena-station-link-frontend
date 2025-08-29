@@ -1,98 +1,95 @@
 "use client";
 
+import { useAuthStore } from "@/store/auth";
 import { useEffect, useState } from "react";
 import { jwtDecode } from "jwt-decode";
-import keycloak from "@/lib/keycloak";
-import { env } from "@/env";
-import { useAuthStore } from "@/store/auth";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 type TokenPayload = {
-  sub: string;
-  preferred_username?: string;
-  email?: string;
-  realm_access?: { roles?: string[] };
-  resource_access?: Record<string, { roles?: string[] }>;
+  exp: number; // epoch seconds
+  iat: number;
+  [key: string]: unknown;
 };
 
+function formatTime(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+    .toString()
+    .padStart(2, "0");
+  const s = Math.floor(seconds % 60)
+    .toString()
+    .padStart(2, "0");
+  return `${m}:${s}`;
+}
+
 export default function DevToken() {
-  const [payload, setPayload] = useState<TokenPayload | null>(null);
-  const [roles, setRoles] = useState<string[]>([]);
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, profile, accessToken } = useAuthStore();
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [hydrated, setHydrated] = useState(false);
 
-  const load = () => {
-    if (!keycloak.token) {
-      setPayload(null);
-      setRoles([]);
-      return;
-    }
-    const p = jwtDecode<TokenPayload>(keycloak.token);
-    const realm = p.realm_access?.roles ?? [];
-    const client = p.resource_access?.[env.KC_CLIENT_ID]?.roles ?? [];
-    setRoles(Array.from(new Set([...realm, ...client])));
-    setPayload(p);
-  };
+  // Evitar parpadeo inicial
+  useEffect(() => setHydrated(true), []);
 
-  // Refresca cuando cambia el estado de auth
+  // Calcular tiempo restante
   useEffect(() => {
-    if (!isAuthenticated) return;
-    load();
-  }, [isAuthenticated]);
+    if (!accessToken) return;
 
-  // Escucha eventos de KC (si entras directo a /dev/token)
-  useEffect(() => {
-    const onOk = () => load();
-    const onRefresh = (refreshed: boolean) => refreshed && load();
+    const decoded = jwtDecode<TokenPayload>(accessToken);
+    if (!decoded?.exp) return;
 
-    keycloak.onAuthSuccess = onOk;
-    keycloak.onAuthRefreshSuccess = onOk;
-    keycloak.onTokenExpired = () =>
-      keycloak
-        .updateToken(40)
-        .then(onRefresh)
-        .catch(() => {});
-
-    return () => {
-      keycloak.onAuthSuccess = undefined;
-      keycloak.onAuthRefreshSuccess = undefined;
-      keycloak.onTokenExpired = undefined;
+    const tick = () => {
+      const now = Math.floor(Date.now() / 1000);
+      const remaining = decoded.exp - now;
+      setTimeLeft(remaining > 0 ? remaining : 0);
     };
-  }, []);
+
+    tick(); // inicial
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [accessToken]);
+
+  if (!hydrated) {
+    return (
+      <section className="min-h-[calc(100dvh-8rem)] container-max py-8 grid gap-6">
+        <h1 className="text-2xl font-bold">Token Debug</h1>
+        <div className="grid gap-4">
+          <Skeleton className="h-5 w-64" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      </section>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
-      <div className="container-max py-8">
-        <h1 className="text-2xl font-bold mb-4">Token Debug</h1>
-        <p className="mb-4">
-          No hay sesión. Inicia sesión para inspeccionar el token.
+      <section className="min-h-[calc(100dvh-8rem)] container-max py-8 grid gap-6">
+        <h1 className="text-2xl font-bold">Token Debug</h1>
+        <p className="opacity-80">
+          No hay sesión activa. Ingresa primero por <code>/login</code>.
         </p>
-        <button
-          className="btn-primary"
-          onClick={() =>
-            keycloak.login({
-              scope: "openid profile email roles",
-              redirectUri:
-                typeof window !== "undefined"
-                  ? `${window.location.origin}/dev/token`
-                  : undefined,
-            })
-          }
-        >
-          Iniciar sesión
-        </button>
-      </div>
+      </section>
     );
   }
 
   return (
-    <div className="container-max py-8">
-      <h1 className="text-2xl font-bold mb-4">Token Debug</h1>
-      <p className="mb-2">
+    <section className="min-h-[calc(100dvh-8rem)] container-max py-8 grid gap-6">
+      <h1 className="text-2xl font-bold">Token Debug</h1>
+
+      <p className="opacity-80">
         Roles detectados:{" "}
-        <strong>{roles.length > 0 ? roles.join(", ") : "(ninguno)"}</strong>
+        <strong>
+          {profile?.roles?.length ? profile.roles.join(", ") : "(ninguno)"}
+        </strong>
       </p>
-      <pre className="rounded-xl border p-4 text-xs overflow-auto">
-        {JSON.stringify(payload, null, 2)}
-      </pre>
-    </div>
+
+      {timeLeft !== null && (
+        <p className="text-sm opacity-70">
+          ⏳ Tiempo restante del token: <strong>{formatTime(timeLeft)}</strong>
+        </p>
+      )}
+
+      <div className="rounded-xl border p-4 text-xs overflow-auto">
+        <pre>{JSON.stringify({ profile, accessToken }, null, 2)}</pre>
+      </div>
+    </section>
   );
 }

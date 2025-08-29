@@ -6,7 +6,8 @@
   </head>
   <body>
     <script>
-      /* Intencionalmente vacío para Keycloak silent SSO */
+      // Keycloak necesita devolver la URL al parent para procesar tokens
+      parent.postMessage(location.href, location.origin);
     </script>
   </body>
 </html>
