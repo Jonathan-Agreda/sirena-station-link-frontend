@@ -7,7 +7,6 @@ import {
   Facebook,
   Instagram,
   Twitter,
-  MessageCircle,
   Phone,
   Send,
 } from "lucide-react";
