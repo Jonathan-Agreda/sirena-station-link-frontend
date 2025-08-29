@@ -1,10 +1,10 @@
 import { create } from "zustand";
 
 export type UserProfile = {
-  id?: string;
-  username?: string;
+  id: string;
+  username: string;
   email?: string;
-  roles?: string[];
+  roles: string[];
 };
 
 type AuthState = {
@@ -19,8 +19,20 @@ export const useAuthStore = create<AuthState>((set) => ({
   accessToken: null,
   profile: null,
   isAuthenticated: false,
+
   setAuth: (token, profile) =>
-    set({ accessToken: token, profile, isAuthenticated: !!token }),
+    set({
+      accessToken: token,
+      profile: profile
+        ? { ...profile, roles: profile.roles ?? [] } // siempre roles array
+        : null,
+      isAuthenticated: !!token && !!profile,
+    }),
+
   clear: () =>
-    set({ accessToken: null, profile: null, isAuthenticated: false }),
+    set({
+      accessToken: null,
+      profile: null,
+      isAuthenticated: false,
+    }),
 }));

@@ -17,12 +17,10 @@ export default function RootLayout({
 }) {
   return (
     <html suppressHydrationWarning lang="es">
-      {/* Hacemos el layout de toda la página en columna para empujar el footer abajo */}
-      <body className="min-h-dvh flex flex-col">
+      <body className="app-shell">
         <AuthProvider>
           <Navbar />
-          {/* El main ocupa todo el alto restante */}
-          <main className="container-max flex-1 py-8">{children}</main>
+          <main className="flex-1">{children}</main>
           <Footer />
         </AuthProvider>
       </body>

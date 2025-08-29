@@ -22,16 +22,19 @@ export default function Navbar() {
   return (
     <header className="navbar">
       <div className="container-max flex h-16 items-center justify-between">
+        {/* Logo */}
         <Link href="/" className="flex items-center gap-3">
           <Image
             src="/brand/logo.svg"
             alt={env.APP_NAME}
             width={128}
             height={32}
+            priority
           />
           <span className="sr-only">{env.APP_NAME}</span>
         </Link>
 
+        {/* Right side nav */}
         <nav className="flex items-center gap-3">
           {isAuthenticated ? (
             <>
@@ -40,12 +43,9 @@ export default function Navbar() {
               </span>
               <LogoutButton />
             </>
-          ) : (
-            <Link href="/login" className="text-sm hover:underline">
-              Ingresar
-            </Link>
-          )}
+          ) : null}
 
+          {/* Toggle tema */}
           <button
             onClick={toggle}
             className="rounded-lg p-2 hover:bg-[color-mix(in_oklab,transparent,black_10%)] dark:hover:bg-[color-mix(in_oklab,transparent,white_10%)]"

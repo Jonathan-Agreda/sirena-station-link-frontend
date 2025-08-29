@@ -17,6 +17,7 @@ type TokenPayload = {
   preferred_username?: string;
   email?: string;
   realm_access?: { roles?: string[] };
+  resource_access?: Record<string, { roles?: string[] }>;
 };
 
 declare global {
@@ -24,6 +25,24 @@ declare global {
     __kc_inited?: boolean;
     __kc_refresh_interval?: number;
   }
+}
+
+/** Extrae roles desde realm + client (frontend-spa) */
+function extractRoles(p: TokenPayload) {
+  const realm = p?.realm_access?.roles ?? [];
+  const client = p?.resource_access?.[env.KC_CLIENT_ID]?.roles ?? [];
+  return Array.from(new Set([...realm, ...client]));
+}
+
+/** Convierte el token en un perfil usable */
+function parseToken(token: string) {
+  const decoded = jwtDecode<TokenPayload>(token);
+  return {
+    id: decoded.sub,
+    username: decoded.preferred_username,
+    email: decoded.email,
+    roles: extractRoles(decoded),
+  };
 }
 
 export default function AuthProvider({ children }: Props) {
@@ -36,17 +55,10 @@ export default function AuthProvider({ children }: Props) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // Si ya fue inicializado (por hot reload o doble render), solo sincronizamos estado y salimos
+    // Si ya está inicializado (hot reload), sincronizamos
     if (window.__kc_inited) {
       if (keycloak.token) {
-        const decoded = jwtDecode<TokenPayload>(keycloak.token);
-        const roles = decoded?.realm_access?.roles || [];
-        setAuth(keycloak.token, {
-          id: decoded.sub,
-          username: decoded.preferred_username,
-          email: decoded.email,
-          roles,
-        });
+        setAuth(keycloak.token, parseToken(keycloak.token));
       } else {
         clear();
       }
@@ -69,48 +81,32 @@ export default function AuthProvider({ children }: Props) {
       })
       .then((authenticated) => {
         if (authenticated && keycloak.token) {
-          const decoded = jwtDecode<TokenPayload>(keycloak.token);
-          const roles = decoded?.realm_access?.roles || [];
+          setAuth(keycloak.token, parseToken(keycloak.token));
 
-          setAuth(keycloak.token, {
-            id: decoded.sub,
-            username: decoded.preferred_username,
-            email: decoded.email,
-            roles,
-          });
-
-          // Redirigimos a la landing de su rol solo si está en home o login
-          const currentPath =
-            typeof window !== "undefined" ? window.location.pathname : "/";
-          if (currentPath === "/" || currentPath.startsWith("/login")) {
-            if (roles.includes("RESIDENTE")) router.replace("/resident");
-            else router.replace("/dashboard");
+          // Redirigir a landing por rol solo si viene de "/" o "/login"
+          const path = window.location.pathname;
+          if (path === "/" || path.startsWith("/login")) {
+            const { roles } = parseToken(keycloak.token);
+            router.replace(
+              roles.includes("RESIDENTE") ? "/resident" : "/dashboard"
+            );
           }
         } else {
           clear();
         }
       })
-      .catch(() => {
-        clear();
-      });
+      .catch(() => clear());
 
-    // Refresh token (único intervalo global)
-    if (window.__kc_refresh_interval) {
+    // Refresh token cada 20s
+    if (window.__kc_refresh_interval)
       clearInterval(window.__kc_refresh_interval);
-    }
+
     window.__kc_refresh_interval = window.setInterval(() => {
       keycloak
         .updateToken(40)
         .then((refreshed) => {
           if (refreshed && keycloak.token) {
-            const decoded = jwtDecode<TokenPayload>(keycloak.token);
-            const roles = decoded?.realm_access?.roles || [];
-            setAuth(keycloak.token, {
-              id: decoded.sub,
-              username: decoded.preferred_username,
-              email: decoded.email,
-              roles,
-            });
+            setAuth(keycloak.token, parseToken(keycloak.token));
           }
         })
         .catch(() => {
@@ -120,7 +116,7 @@ export default function AuthProvider({ children }: Props) {
     }, 20000);
   }, [router, setAuth, clear]);
 
-  // Inyecta variables CSS de marca desde .env
+  // Variables de branding desde .env
   const cssVars = {
     ["--brand-primary" as any]: env.BRAND_PRIMARY,
     ["--brand-primary-fg" as any]: env.BRAND_PRIMARY_FG,
