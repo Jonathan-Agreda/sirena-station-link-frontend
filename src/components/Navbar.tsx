@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { env } from "@/env";
 import { useTheme } from "next-themes";
@@ -22,15 +21,80 @@ export default function Navbar() {
   return (
     <header className="navbar">
       <div className="container-max flex h-16 items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-3">
-          <Image
-            src="/brand/logo.svg"
-            alt={env.APP_NAME}
-            width={128}
-            height={32}
-            priority
-          />
+        {/* Logo inline SVG adaptado a modo claro/oscuro */}
+        <Link href="/" className="flex items-center gap-2 hover:opacity-90">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            role="img"
+            width="160"
+            height="48"
+            viewBox="0 0 256 64"
+            className="text-[--fg-light] dark:text-[--fg-dark]"
+          >
+            <defs>
+              <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stopColor="var(--brand-primary)" />
+                <stop offset="1" stopColor="var(--accent)" />
+              </linearGradient>
+            </defs>
+            <g transform="translate(8,8)">
+              <rect
+                x="0"
+                y="20"
+                width="24"
+                height="20"
+                rx="4"
+                fill="var(--brand-primary)"
+              />
+              <rect
+                x="6"
+                y="16"
+                width="12"
+                height="8"
+                rx="2"
+                fill="var(--brand-primary)"
+              />
+              <circle cx="12" cy="30" r="3" fill="var(--brand-primary-fg)" />
+              <path
+                d="M26,24 C34,20 34,40 26,36"
+                fill="none"
+                stroke="url(#g)"
+                strokeWidth="3"
+                strokeLinecap="round"
+              />
+              <path
+                d="M30,22 C42,16 42,44 30,38"
+                fill="none"
+                stroke="url(#g)"
+                strokeWidth="3"
+                strokeLinecap="round"
+                opacity="0.7"
+              />
+            </g>
+            {/* Texto ocultable en móviles */}
+            <g transform="translate(64,16)" className="hidden sm:block">
+              <text
+                x="0"
+                y="18"
+                fontFamily="Inter, system-ui, sans-serif"
+                fontSize="20"
+                fontWeight="700"
+                fill="currentColor"
+              >
+                {env.APP_NAME}
+              </text>
+              <text
+                x="0"
+                y="40"
+                fontFamily="Inter, system-ui, sans-serif"
+                fontSize="13"
+                fill="currentColor"
+                opacity="0.7"
+              >
+                {env.SLOGAN}
+              </text>
+            </g>
+          </svg>
           <span className="sr-only">{env.APP_NAME}</span>
         </Link>
 
