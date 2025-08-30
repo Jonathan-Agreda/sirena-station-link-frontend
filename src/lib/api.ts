@@ -3,16 +3,24 @@ import { env } from "@/env";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "sonner";
 
-// Cliente principal
 const api = axios.create({
   baseURL: env.API_URL,
   withCredentials: true,
 });
 
-// Cliente limpio SIN interceptores para el refresh
 const refreshApi = axios.create({
   baseURL: env.API_URL,
   withCredentials: true,
+});
+
+// 👉 Adjunta Authorization en cada request si hay token
+api.interceptors.request.use((config) => {
+  const token = useAuthStore.getState().accessToken;
+  if (token) {
+    config.headers = config.headers ?? {};
+    (config.headers as any).Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 api.interceptors.response.use(
@@ -20,36 +28,27 @@ api.interceptors.response.use(
   async (error) => {
     const original = error.config;
 
-    // Si no hay response o no hay status → error desconocido
-    if (!error.response) {
-      return Promise.reject(error);
-    }
+    if (!error.response) return Promise.reject(error);
 
-    // Evitar bucles: no interceptar login ni refresh
-    const isAuthEndpoint =
-      original.url?.includes("/auth/login/web") ||
-      original.url?.includes("/auth/refresh/web");
-    if (isAuthEndpoint) {
-      return Promise.reject(error);
-    }
+    const isAuth =
+      original?.url?.includes("/auth/login/web") ||
+      original?.url?.includes("/auth/refresh/web");
+    if (isAuth) return Promise.reject(error);
 
-    // Manejar 401 → intentar refresh SOLO una vez
     if (error.response.status === 401 && !original._retry) {
       original._retry = true;
       try {
-        const refreshRes = await refreshApi.post("/auth/refresh/web");
-        const newToken = refreshRes.data.accessToken;
+        const r = await refreshApi.post("/auth/refresh/web");
+        const newToken = r.data?.accessToken;
 
         const store = useAuthStore.getState();
-        if (store.user) {
-          store.setAuth(store.user, newToken);
-        }
+        if (store.user) store.setAuth(store.user, newToken);
+        else store.setAccessToken(newToken);
 
-        // reintentar con el nuevo token
+        original.headers = original.headers ?? {};
         original.headers["Authorization"] = `Bearer ${newToken}`;
         return api(original);
       } catch {
-        // refresh falló → cerrar sesión
         useAuthStore.getState().logout();
         toast.error("Sesión expirada. Inicia sesión nuevamente.");
         if (typeof window !== "undefined") {

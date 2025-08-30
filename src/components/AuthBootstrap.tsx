@@ -3,62 +3,57 @@
 import { useEffect } from "react";
 import { fetchMe, MeResponse } from "@/services/auth";
 import { useAuthStore } from "@/store/auth";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import api from "@/lib/api";
+import { useHydrated } from "@/hook/useHydrated";
 
 /**
  * Bootstrap global:
- * - Si hay accessToken y user === null → pide /residents/me y rellena el store.
- * - Si no hay accessToken → intenta refrescarlo vía cookie (/auth/refresh/web).
- * - Si falla → redirige a /login.
+ * - Si ya hay user + token hidratados → no tocar nada.
+ * - Si hay token pero user vacío → pedir /residents/me.
+ * - Si no hay token → intentar refresh (cookie HttpOnly).
+ * - Si falla → /login.
  */
 export default function AuthBootstrap() {
-  const { accessToken, user } = useAuthStore();
+  const hydrated = useHydrated();
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const user = useAuthStore((s) => s.user);
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
-    const bootstrap = async () => {
+    const run = async () => {
       try {
-        let currentUser = user;
-        let token = accessToken;
+        if (!hydrated) return;
 
-        // 🔹 Si no hay accessToken → intentar refresh
-        if (!token) {
-          try {
-            const res = await api.post("/auth/refresh/web");
-            token = res.data?.accessToken;
-            if (token) {
-              useAuthStore.getState().setAccessToken(token);
-            } else {
-              router.replace("/login");
-              return;
-            }
-          } catch {
-            useAuthStore.getState().logout();
-            router.replace("/login");
-            return;
-          }
-        }
+        // 1) token + user ya hidratados → confiar
+        if (accessToken && user) return;
 
-        // 🔹 Si hay token pero no hay user → pedir perfil
-        if (token && !currentUser) {
+        // 2) token pero sin user → pedir perfil
+        if (accessToken && !user) {
           try {
             const me: MeResponse = await fetchMe();
+            useAuthStore.getState().setAuth(me, accessToken);
+            return;
+          } catch {
+            // token inválido: limpiar para forzar refresh
+            useAuthStore.getState().setAccessToken(null);
+          }
+        }
+
+        // 3) sin token → intentar refresh
+        if (!accessToken) {
+          try {
+            const res = await api.post("/auth/refresh/web");
+            const token = res.data?.accessToken;
+            if (!token) throw new Error("No accessToken en refresh");
+            useAuthStore.getState().setAccessToken(token);
+            const me: MeResponse = await fetchMe();
             useAuthStore.getState().setAuth(me, token);
-            currentUser = me;
+            return;
           } catch {
             useAuthStore.getState().logout();
             router.replace("/login");
             return;
-          }
-        }
-
-        // 🔹 Validar solo la restricción crítica
-        if (currentUser) {
-          const { role } = currentUser;
-          if (role === "RESIDENTE" && pathname.startsWith("/dashboard")) {
-            router.replace("/sirenastation");
           }
         }
       } catch {
@@ -67,8 +62,8 @@ export default function AuthBootstrap() {
       }
     };
 
-    bootstrap();
-  }, [accessToken, user, router, pathname]);
+    run();
+  }, [hydrated, accessToken, user, router]);
 
   return null;
 }

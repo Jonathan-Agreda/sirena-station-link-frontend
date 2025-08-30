@@ -4,6 +4,7 @@ import { useAuthStore } from "@/store/auth";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { Role } from "@/services/auth";
+import { useHydrated } from "@/hook/useHydrated";
 
 type RoleGateProps = {
   allowed: Role[];
@@ -12,40 +13,41 @@ type RoleGateProps = {
 
 /**
  * Protege rutas según rol.
+ * - Espera hidratación de Zustand para no redirigir antes de tiempo.
  * - Si no hay sesión -> login
- * - Si hay sesión y el rol no está en `allowed`, se restringe solo en casos específicos.
+ * - Si el rol no está permitido: solo bloquea /dashboard para RESIDENTE.
  */
 export default function RoleGate({ allowed, children }: RoleGateProps) {
-  const { isAuthenticated, user } = useAuthStore();
+  const hydrated = useHydrated();
+  const user = useAuthStore((s) => s.user); // 👈 usa solo user (más confiable que isAuthenticated en race)
   const router = useRouter();
   const pathname = usePathname();
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated || !user) {
+    if (!hydrated) return;
+
+    if (!user) {
       router.replace("/login");
       return;
     }
 
-    const { role } = user;
-    const hasAllowed = allowed.includes(role);
-
+    const hasAllowed = allowed.includes(user.role);
     if (hasAllowed) {
       setChecked(true);
       return;
     }
 
-    // 🚨 Restricción mínima: residente no puede entrar a dashboard
-    if (role === "RESIDENTE" && pathname.startsWith("/dashboard")) {
+    // Restricción mínima
+    if (user.role === "RESIDENTE" && pathname.startsWith("/dashboard")) {
       router.replace("/sirenastation");
       return;
     }
 
-    // Otros casos → permitimos continuar (ej: /home, /about, etc.)
     setChecked(true);
-  }, [isAuthenticated, user, allowed, router, pathname]);
+  }, [hydrated, user, allowed, router, pathname]);
 
-  if (!checked) {
+  if (!hydrated || !checked) {
     return (
       <div className="min-h-[60vh] grid place-items-center text-sm opacity-70">
         Validando acceso…
