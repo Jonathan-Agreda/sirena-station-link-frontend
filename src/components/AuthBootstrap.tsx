@@ -4,12 +4,13 @@ import { useEffect } from "react";
 import { fetchMe, MeResponse, homeFor } from "@/services/auth";
 import { useAuthStore } from "@/store/auth";
 import { useRouter, usePathname } from "next/navigation";
+import api from "@/lib/api";
 
 /**
  * Bootstrap global:
- * - Si hay accessToken y user === null, pide /residents/me
- *   y rellena el store (setAuth).
- * - Asegura que el usuario esté en una ruta válida según su rol.
+ * - Si hay accessToken y user === null → pide /residents/me y rellena el store.
+ * - Si no hay accessToken → intenta refrescarlo vía cookie (/auth/refresh/web).
+ * - Si falla → redirige a /login.
  */
 export default function AuthBootstrap() {
   const { accessToken, user } = useAuthStore();
@@ -20,19 +21,34 @@ export default function AuthBootstrap() {
     const bootstrap = async () => {
       try {
         let currentUser = user;
+        let token = accessToken;
 
-        if (accessToken && !user) {
+        // 🔹 Si no hay accessToken, intentar refresh
+        if (!token) {
+          try {
+            const res = await api.post("/auth/refresh/web");
+            token = res.data?.accessToken;
+            if (token) {
+              useAuthStore.getState().setAccessToken(token);
+            }
+          } catch {
+            router.replace("/login");
+            return;
+          }
+        }
+
+        // 🔹 Si hay token pero no hay user → pedir perfil
+        if (token && !currentUser) {
           const me: MeResponse = await fetchMe();
-          const token = useAuthStore.getState().accessToken!;
           useAuthStore.getState().setAuth(me, token);
           currentUser = me;
         }
 
+        // 🔹 Validar rutas según rol
         if (currentUser) {
           const { role } = currentUser;
 
-          // ✅ Rutas válidas por rol
-          const canSeeSirenastation = true; // todos
+          const canSeeSirenastation = true; // todos los roles
           const canSeeDashboard = ["SUPERADMIN", "ADMIN", "GUARDIA"].includes(
             role
           );
@@ -50,7 +66,7 @@ export default function AuthBootstrap() {
           }
         }
       } catch {
-        // Silencio: si falla, la UI pedirá login o reintentará
+        router.replace("/login");
       }
     };
 
