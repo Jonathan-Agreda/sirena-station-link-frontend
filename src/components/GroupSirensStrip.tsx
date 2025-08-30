@@ -58,6 +58,11 @@ export default function GroupSirensStrip() {
     }
   }
 
+  // 🔹 Ordenar sirenas por deviceId
+  const sortedSirens = [...sirens].sort((a, b) =>
+    a.deviceId.localeCompare(b.deviceId)
+  );
+
   return (
     <div className="w-full">
       {/* Select de grupos */}
@@ -94,7 +99,7 @@ export default function GroupSirensStrip() {
 
       {/* Sirenas */}
       <div className="w-full overflow-x-auto flex gap-4 pb-2">
-        {sirens.map((s) => (
+        {sortedSirens.map((s) => (
           <div
             key={s.deviceId}
             className="rounded-xl border p-4 min-w-[220px] text-center bg-card shadow-sm"
