@@ -23,15 +23,19 @@ export default function AuthBootstrap() {
         let currentUser = user;
         let token = accessToken;
 
-        // 🔹 Si no hay accessToken, intentar refresh
+        // 🔹 Si no hay accessToken → intentar refresh
         if (!token) {
           try {
             const res = await api.post("/auth/refresh/web");
             token = res.data?.accessToken;
             if (token) {
               useAuthStore.getState().setAccessToken(token);
+            } else {
+              router.replace("/login");
+              return;
             }
           } catch {
+            useAuthStore.getState().logout(); // limpiar store también
             router.replace("/login");
             return;
           }
@@ -39,9 +43,15 @@ export default function AuthBootstrap() {
 
         // 🔹 Si hay token pero no hay user → pedir perfil
         if (token && !currentUser) {
-          const me: MeResponse = await fetchMe();
-          useAuthStore.getState().setAuth(me, token);
-          currentUser = me;
+          try {
+            const me: MeResponse = await fetchMe();
+            useAuthStore.getState().setAuth(me, token);
+            currentUser = me;
+          } catch {
+            useAuthStore.getState().logout();
+            router.replace("/login");
+            return;
+          }
         }
 
         // 🔹 Validar rutas según rol
@@ -66,6 +76,7 @@ export default function AuthBootstrap() {
           }
         }
       } catch {
+        useAuthStore.getState().logout();
         router.replace("/login");
       }
     };

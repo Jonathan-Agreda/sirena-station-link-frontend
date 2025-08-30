@@ -2,15 +2,16 @@
 
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { LogIn } from "lucide-react";
+import { LogIn, CheckCircle } from "lucide-react"; // 👈 icono check
 import { LogoAnimated } from "@/components/LogoAnimated";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import Link from "next/link";
-import { loginWeb, homeFor } from "@/services/auth"; // 👈 usamos homeFor centralizado
+import { loginWeb, homeFor } from "@/services/auth";
 import type { AxiosError } from "axios";
+import { useEffect, useState } from "react";
 
 // ------------------ Zod Schema ------------------
 const loginSchema = z.object({
@@ -19,20 +20,40 @@ const loginSchema = z.object({
     .min(1, "Usuario o email requerido")
     .max(100, "Máximo 100 caracteres"),
   password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+  remember: z.boolean().optional(),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const [rememberActive, setRememberActive] = useState(false);
 
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
   });
+
+  // 🔹 Al montar, precargar usuario si estaba guardado
+  useEffect(() => {
+    const savedUser = localStorage.getItem("rememberUser");
+    if (savedUser) {
+      setValue("username", savedUser);
+      setValue("remember", true);
+      setRememberActive(true);
+    }
+  }, [setValue]);
+
+  // Escuchar cambios de "remember"
+  const remember = watch("remember");
+  useEffect(() => {
+    setRememberActive(!!remember);
+  }, [remember]);
 
   async function onSubmit(data: LoginForm) {
     try {
@@ -40,6 +61,13 @@ export default function LoginPage() {
       const res = await loginWeb(data.username, data.password);
 
       toast.success(`Bienvenido ${res.user.username} 👋`);
+
+      // 🔹 Guardar/limpiar según "Recuérdame"
+      if (data.remember) {
+        localStorage.setItem("rememberUser", data.username);
+      } else {
+        localStorage.removeItem("rememberUser");
+      }
 
       // 🔹 Redirección usando helper centralizado
       router.push(homeFor(res.user.role));
@@ -88,12 +116,24 @@ export default function LoginPage() {
             onSubmit={handleSubmit(onSubmit)}
             className="grid gap-4 text-left"
           >
-            <input
-              type="text"
-              placeholder="Usuario o Email"
-              {...register("username")}
-              className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-[var(--bg-dark)] text-[var(--fg-light)] dark:text-[var(--fg-dark)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Usuario o Email"
+                {...register("username")}
+                className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 
+                           bg-white dark:bg-[var(--bg-dark)] 
+                           text-[var(--fg-light)] dark:text-[var(--fg-dark)] 
+                           focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
+              />
+              {/* ✅ Icono verde si está activo "Recuérdame" */}
+              {rememberActive && (
+                <CheckCircle
+                  size={20}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500"
+                />
+              )}
+            </div>
             {errors.username && (
               <p className="text-sm text-[var(--danger)]">
                 {errors.username.message}
@@ -104,13 +144,22 @@ export default function LoginPage() {
               type="password"
               placeholder="Contraseña"
               {...register("password")}
-              className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-[var(--bg-dark)] text-[var(--fg-light)] dark:text-[var(--fg-dark)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
+              className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 
+                         bg-white dark:bg-[var(--bg-dark)] 
+                         text-[var(--fg-light)] dark:text-[var(--fg-dark)] 
+                         focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
             />
             {errors.password && (
               <p className="text-sm text-[var(--danger)]">
                 {errors.password.message}
               </p>
             )}
+
+            {/* Checkbox Recuérdame */}
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" {...register("remember")} />
+              <span>Recuérdame</span>
+            </label>
 
             <button
               type="submit"

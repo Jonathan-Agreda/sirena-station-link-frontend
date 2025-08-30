@@ -158,7 +158,7 @@ export default function Navbar() {
           {/* Toggle tema */}
           <button
             onClick={toggle}
-            className="rounded-lg p-2 hover:bg-[color-mix(in_oklab,transparent,black_10%)] dark:hover:bg-[color-mix(in_oklab,transparent,white_10%)]"
+            className="rounded-lg p-2 cursor-pointer hover:bg-[color-mix(in_oklab,transparent,black_10%)] dark:hover:bg-[color-mix(in_oklab,transparent,white_10%)]"
             aria-label="Cambiar tema"
           >
             {mounted ? (
