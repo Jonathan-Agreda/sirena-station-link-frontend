@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import { LogoAnimated } from "@/components/LogoAnimated";
 import { useSirenSocket } from "@/hook/useSirenSocket";
 import { toggleSiren } from "@/services/sirens";
+import { useState, useEffect } from "react";
 
 export default function ResidentPage() {
   const { data: user, isLoading } = useQuery<ResidentMeResponse>({
@@ -16,7 +17,16 @@ export default function ResidentPage() {
     queryFn: fetchMe as () => Promise<ResidentMeResponse>,
   });
 
-  const { state, countdown } = useSirenSocket(user?.siren?.deviceId || "");
+  // Sirena seleccionada
+  const [selectedSirenId, setSelectedSirenId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user?.sirens?.length) {
+      setSelectedSirenId(user.sirens[0].deviceId); // por defecto la primera
+    }
+  }, [user]);
+
+  const { state, countdown } = useSirenSocket(selectedSirenId || "");
 
   async function handleToggle() {
     if (!state || !state.online) return; // 🔹 si está sin datos u offline → no hace nada
@@ -152,9 +162,27 @@ export default function ResidentPage() {
                     </p>
                   ) : (
                     <>
+                      {/* Dropdown si hay varias sirenas */}
+                      {user.sirens && user.sirens.length > 1 && (
+                        <select
+                          value={selectedSirenId || ""}
+                          onChange={(e) => setSelectedSirenId(e.target.value)}
+                          className="mb-3 rounded-lg border px-3 py-2 text-sm bg-background"
+                        >
+                          {user.sirens.map((s) => (
+                            <option key={s.deviceId} value={s.deviceId}>
+                              {s.deviceId}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+
                       {/* Nombre arriba */}
                       <p className="text-lg font-bold">
-                        {state?.deviceId || user.siren?.deviceId || "—"}
+                        {state?.deviceId ||
+                          selectedSirenId ||
+                          user.sirens?.[0]?.deviceId ||
+                          "—"}
                       </p>
 
                       {/* Botón enorme con gradientes */}
