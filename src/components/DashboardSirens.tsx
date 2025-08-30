@@ -1,6 +1,8 @@
 "use client";
 
 import { useDashboardSirens } from "@/hook/useDashboardSirens";
+import { Bell, BellOff, Volume2, VolumeX, Vibrate } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 function formatTime(sec?: number) {
   if (!sec || sec <= 0) return "";
@@ -16,18 +18,27 @@ function formatTime(sec?: number) {
 export default function DashboardSirens() {
   const { sirens, sendCommand } = useDashboardSirens();
 
-  // 🔹 Ordenar por deviceId (alfanumérico)
-  const sortedSirens = [...sirens].sort((a, b) =>
-    a.deviceId.localeCompare(b.deviceId, "en", { numeric: true })
+  /* ----------------------- Orden y métricas ----------------------- */
+  const sortedSirens = useMemo(
+    () =>
+      [...sirens].sort((a, b) =>
+        a.deviceId.localeCompare(b.deviceId, "en", { numeric: true })
+      ),
+    [sirens]
   );
 
-  // 🔹 Métricas para el botón global
   const total = sortedSirens.length;
-  const online = sortedSirens.filter((s) => s.online);
-  const onCount = sortedSirens.filter((s) => s.siren === "ON").length;
+  const online = useMemo(
+    () => sortedSirens.filter((s) => s.online),
+    [sortedSirens]
+  );
+  const onCount = useMemo(
+    () => sortedSirens.filter((s) => s.siren === "ON").length,
+    [sortedSirens]
+  );
   const anyPending = sortedSirens.some((s) => s.pending);
 
-  // “¿Todas ON?” (solo consideramos las que están online)
+  // “¿Todas ON?” (entre las online)
   const allOnlineOn =
     online.length > 0 && online.every((s) => s.siren === "ON");
   const bulkTarget: "ON" | "OFF" = allOnlineOn ? "OFF" : "ON";
@@ -35,42 +46,237 @@ export default function DashboardSirens() {
 
   const handleBulkToggle = () => {
     if (!canBulk) return;
-    // Enviamos a TODAS las online (si alguna está pending la saltamos)
     for (const s of online) {
       if (s.pending) continue;
       sendCommand(s.deviceId, bulkTarget);
     }
   };
 
+  /* ----------------------- Alertas del dashboard ----------------------- */
+  const activeOnline = useMemo(
+    () => online.filter((s) => s.siren === "ON"),
+    [online]
+  );
+
+  const [alertsEnabled, setAlertsEnabled] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [vibrateEnabled, setVibrateEnabled] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const intervalMs = 20000; // cada 20 s
+
+  // Audio (WebAudio) – se inicializa tras un gesto del usuario
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  function ensureAudioCtx() {
+    if (!audioCtxRef.current) {
+      const Ctx = (window.AudioContext ||
+        (window as any).webkitAudioContext) as typeof AudioContext;
+      if (Ctx) audioCtxRef.current = new Ctx();
+    }
+    return audioCtxRef.current;
+  }
+  function beep() {
+    const ctx = ensureAudioCtx();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 880;
+    gain.gain.value = 0.001;
+    osc.connect(gain).connect(ctx.destination);
+    const now = ctx.currentTime;
+    gain.gain.exponentialRampToValueAtTime(0.25, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.00001, now + 0.25);
+    osc.start(now);
+    osc.stop(now + 0.26);
+  }
+
+  async function requestNotifPermission() {
+    if (!(typeof window !== "undefined" && "Notification" in window)) return;
+    const p = await Notification.requestPermission();
+    if (p === "granted") setAlertsEnabled(true);
+  }
+
+  function fireNotification() {
+    if (!(typeof window !== "undefined" && "Notification" in window)) return;
+    if (Notification.permission !== "granted") return;
+
+    const names = activeOnline.map((s) => s.deviceId).join(", ");
+    const title =
+      activeOnline.length === 1 ? "Sirena ACTIVADA" : "Sirenas ACTIVADAS";
+    const body =
+      activeOnline.length === 1
+        ? `${names} está ON`
+        : `${activeOnline.length} sirenas ON: ${names}`;
+
+    const n = new Notification(title, { body, tag: "sirena-alert" });
+    setTimeout(() => n.close(), 5000);
+  }
+
+  function fireVibration() {
+    if (!("vibrate" in navigator)) return;
+    try {
+      navigator.vibrate([220, 100, 220]);
+    } catch {}
+  }
+
+  const lastHadActiveRef = useRef(false);
+  function triggerAlert(immediate = false) {
+    if (!alertsEnabled || muted) return;
+    if (activeOnline.length === 0) return;
+
+    fireNotification();
+    if (soundEnabled) {
+      ensureAudioCtx()?.resume?.();
+      beep();
+    }
+    if (vibrateEnabled) fireVibration();
+
+    if (immediate) {
+      // nada extra
+    }
+  }
+
+  useEffect(() => {
+    const hadActive = lastHadActiveRef.current;
+    const hasActive = activeOnline.length > 0;
+
+    if (!hadActive && hasActive) {
+      // transición 0 → >0
+      triggerAlert(true);
+    }
+    lastHadActiveRef.current = hasActive;
+
+    if (!alertsEnabled || muted || !hasActive) return;
+    const t = setInterval(() => triggerAlert(false), intervalMs);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    alertsEnabled,
+    muted,
+    soundEnabled,
+    vibrateEnabled,
+    activeOnline.map((s) => s.deviceId).join("|"),
+  ]);
+
+  // Helpers para botón de notificaciones (evita boolean en title)
+  const hasNotifs = typeof window !== "undefined" && "Notification" in window;
+  const notifGranted = hasNotifs && Notification.permission === "granted";
+  const notifTitle = notifGranted
+    ? alertsEnabled
+      ? "Notificaciones activadas"
+      : "Notificaciones desactivadas"
+    : "Activar notificaciones del navegador";
+
+  /* ----------------------- UI ----------------------- */
   return (
     <div className="space-y-3">
-      {/* Barra superior: estado + botón global */}
-      <div className="flex items-center justify-between gap-3">
+      {/* Header: estado + acciones */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        {/* Estado */}
         <div className="text-sm text-neutral-500">
           <span className="font-medium">{online.length}</span> / {total} online
           · <span className="font-medium">{onCount}</span> activas
-          {anyPending && (
+          {sortedSirens.some((s) => s.pending) && (
             <span className="ml-2 rounded-full bg-yellow-500/15 px-2 py-0.5 text-xs text-yellow-600">
               ejecutando…
             </span>
           )}
         </div>
 
-        <button
-          onClick={handleBulkToggle}
-          disabled={!canBulk}
-          className={`rounded-xl px-4 py-2 text-sm font-semibold text-white transition
-            ${
-              allOnlineOn
-                ? "bg-red-gradient hover:brightness-110"
-                : "bg-green-gradient hover:brightness-110"
-            }
-            disabled:opacity-50 disabled:cursor-not-allowed`}
-          aria-label={allOnlineOn ? "Apagar todas" : "Encender todas"}
-          title={allOnlineOn ? "Apagar todas" : "Encender todas"}
-        >
-          {allOnlineOn ? "Apagar todas" : "Encender todas"}
-        </button>
+        {/* Acciones: bulk + alertas */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Botón encender/apagar todas (solo online) */}
+          <button
+            onClick={handleBulkToggle}
+            disabled={!canBulk}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold text-white transition
+              ${
+                allOnlineOn
+                  ? "bg-red-gradient hover:brightness-110"
+                  : "bg-green-gradient hover:brightness-110"
+              }
+              disabled:opacity-50 disabled:cursor-not-allowed`}
+            aria-label={allOnlineOn ? "Apagar todas" : "Encender todas"}
+            title={allOnlineOn ? "Apagar todas" : "Encender todas"}
+          >
+            {allOnlineOn ? "Apagar todas" : "Encender todas"}
+          </button>
+
+          {/* Panel de alertas */}
+          <div className="ml-2 flex items-center gap-2 rounded-xl border px-2 py-1 text-sm">
+            {/* Notificaciones */}
+            <button
+              onClick={() =>
+                notifGranted
+                  ? setAlertsEnabled((v) => !v)
+                  : requestNotifPermission()
+              }
+              className={`flex items-center gap-1 rounded-lg px-2 py-1 transition ${
+                alertsEnabled
+                  ? "bg-emerald-500/15 text-emerald-600"
+                  : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              }`}
+              title={notifTitle}
+            >
+              {alertsEnabled ? <Bell size={16} /> : <BellOff size={16} />}
+              <span className="hidden sm:inline">
+                {notifGranted
+                  ? alertsEnabled
+                    ? "Notifs ON"
+                    : "Notifs OFF"
+                  : "Permitir notifs"}
+              </span>
+            </button>
+
+            {/* Sonido */}
+            <button
+              onClick={() => {
+                ensureAudioCtx()?.resume?.();
+                setSoundEnabled((v) => !v);
+              }}
+              className={`flex items-center gap-1 rounded-lg px-2 py-1 transition ${
+                soundEnabled
+                  ? "bg-indigo-500/15 text-indigo-600"
+                  : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              }`}
+              title="Alternar sonido"
+            >
+              {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+              <span className="hidden sm:inline">
+                {soundEnabled ? "Sonido" : "Silencio"}
+              </span>
+            </button>
+
+            {/* Vibración */}
+            <button
+              onClick={() => setVibrateEnabled((v) => !v)}
+              className={`flex items-center gap-1 rounded-lg px-2 py-1 transition ${
+                vibrateEnabled
+                  ? "bg-cyan-500/15 text-cyan-600"
+                  : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              }`}
+              title="Alternar vibración"
+            >
+              <Vibrate size={16} />
+              <span className="hidden sm:inline">
+                {vibrateEnabled ? "Vibrar" : "No vibrar"}
+              </span>
+            </button>
+
+            {/* Mute global */}
+            <button
+              onClick={() => setMuted((v) => !v)}
+              className={`rounded-lg px-2 py-1 transition ${
+                muted
+                  ? "bg-red-500/15 text-red-600"
+                  : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              }`}
+              title="Silenciar/activar alertas"
+            >
+              {muted ? "Mutear: ON" : "Mutear: OFF"}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Grid de sirenas */}
