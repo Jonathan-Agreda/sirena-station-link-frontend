@@ -6,6 +6,7 @@ import { fetchMe } from "@/services/auth";
 import { Skeleton } from "@/components/ui/Skeleton";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { LogoAnimated } from "@/components/LogoAnimated";
 
 export default function ResidentPage() {
   // ✅ obtener perfil desde el backend
@@ -17,7 +18,7 @@ export default function ResidentPage() {
   return (
     <RoleGate allowed={["RESIDENTE"]}>
       <section className="container-max page grid gap-8">
-        {/* HERO con logo animado */}
+        {/* HERO con LogoAnimated */}
         <motion.div
           className="flex justify-center"
           initial={{ opacity: 0, scale: 0.88 }}
@@ -27,100 +28,7 @@ export default function ResidentPage() {
             scale: { duration: 3, repeat: Infinity, ease: "easeInOut" },
           }}
         >
-          <div className="relative">
-            <div className="absolute inset-0 blur-3xl opacity-25 bg-[var(--brand-primary)] rounded-full scale-125" />
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="380"
-              height="120"
-              viewBox="0 0 500 120"
-              className="relative text-[--fg-light] dark:text-[--fg-dark]"
-              aria-label="SirenaStationLink"
-            >
-              <defs>
-                <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0" stopColor="var(--brand-primary)" />
-                  <stop offset="1" stopColor="var(--accent)" />
-                </linearGradient>
-                <linearGradient id="shine" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="white" stopOpacity="0" />
-                  <stop offset="50%" stopColor="white" stopOpacity="0.6" />
-                  <stop offset="100%" stopColor="white" stopOpacity="0" />
-                </linearGradient>
-                <mask id="shine-mask">
-                  <rect width="100%" height="100%" fill="url(#shine)">
-                    <animateTransform
-                      attributeName="transform"
-                      type="translate"
-                      from="-500 0"
-                      to="500 0"
-                      dur="4s"
-                      repeatCount="indefinite"
-                    />
-                  </rect>
-                </mask>
-              </defs>
-
-              {/* Ícono */}
-              <g transform="translate(20,28)">
-                <rect
-                  x="0"
-                  y="20"
-                  width="40"
-                  height="32"
-                  rx="6"
-                  fill="var(--brand-primary)"
-                />
-                <rect
-                  x="8"
-                  y="12"
-                  width="20"
-                  height="12"
-                  rx="3"
-                  fill="var(--brand-primary)"
-                />
-                <circle cx="20" cy="36" r="5" fill="var(--brand-primary-fg)" />
-                <path
-                  d="M46,28 C60,20 60,60 46,52"
-                  fill="none"
-                  stroke="url(#g)"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  mask="url(#shine-mask)"
-                />
-                <path
-                  d="M52,24 C72,16 72,64 52,56"
-                  fill="none"
-                  stroke="url(#g)"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  opacity="0.7"
-                  mask="url(#shine-mask)"
-                />
-              </g>
-
-              {/* Marca */}
-              <g transform="translate(100,55)">
-                <text
-                  fontFamily="Inter, system-ui, sans-serif"
-                  fontSize="40"
-                  fontWeight="700"
-                  fill="currentColor"
-                >
-                  SirenaStationLink
-                </text>
-                <text
-                  y="32"
-                  fontFamily="Inter, system-ui, sans-serif"
-                  fontSize="20"
-                  fill="currentColor"
-                  opacity="0.7"
-                >
-                  Alerta comunitaria al instante
-                </text>
-              </g>
-            </svg>
-          </div>
+          <LogoAnimated />
         </motion.div>
 
         {/* Banner urbanización + estado de alícuota */}
@@ -134,17 +42,17 @@ export default function ResidentPage() {
             <div className="rounded-xl border p-4 flex items-center justify-between bg-[color-mix(in_oklab,transparent,var(--brand-primary)_6%)] dark:bg-[color-mix(in_oklab,transparent,var(--brand-primary)_10%)]">
               <p className="text-sm sm:text-base">
                 Urbanización:{" "}
-                <strong>{user.urbanizacion?.nombre || "Sin asignar"}</strong>
+                <strong>{user.urbanizacion?.name || "Sin asignar"}</strong>
               </p>
 
+              {/* Badge Alicuota */}
               <span
                 className={[
-                  "px-3 py-1 rounded-full text-xs font-medium",
+                  "px-4 py-1.5 rounded-full text-xs font-semibold shadow-sm border",
                   user.alicuota === false
-                    ? "bg-[color-mix(in_oklab,white,#d22_10%)] text-[--danger] border border-[--danger]"
-                    : "bg-[color-mix(in_oklab,white,#0a4_10%)] text-[--success] border border-[--success]",
+                    ? "bg-[--danger]/10 text-[--danger] border-[--danger]"
+                    : "bg-[--success]/10 text-[--success] border-[--success]",
                 ].join(" ")}
-                title="Estado de alícuota"
               >
                 {user.alicuota === false
                   ? "Alícuota pendiente"
@@ -158,7 +66,7 @@ export default function ResidentPage() {
               <div className="rounded-xl border overflow-hidden relative">
                 <Image
                   src="/urbanitation/savali.jpeg"
-                  alt={`Foto de ${user.urbanizacion?.nombre || "urbanización"}`}
+                  alt={`Foto de ${user.urbanizacion?.name || "urbanización"}`}
                   width={1600}
                   height={900}
                   className="h-64 md:h-full w-full object-cover"
@@ -168,7 +76,7 @@ export default function ResidentPage() {
                 <div className="absolute bottom-3 left-3 text-white drop-shadow">
                   <p className="text-sm opacity-90">Vista de</p>
                   <p className="font-semibold">
-                    {user.urbanizacion?.nombre || "Urbanización"}
+                    {user.urbanizacion?.name || "Urbanización"}
                   </p>
                 </div>
               </div>
@@ -188,12 +96,16 @@ export default function ResidentPage() {
                       <dd className="font-medium">{user.email || "—"}</dd>
                     </div>
                     <div className="grid grid-cols-[110px_1fr] gap-2">
-                      <dt className="opacity-60">Dirección</dt>
-                      <dd className="font-medium">
-                        {[user.etapa, user.manzana, user.villa]
-                          .filter(Boolean)
-                          .join(" • ") || "—"}
-                      </dd>
+                      <dt className="opacity-60">Etapa</dt>
+                      <dd className="font-medium">{user.etapa || "—"}</dd>
+                    </div>
+                    <div className="grid grid-cols-[110px_1fr] gap-2">
+                      <dt className="opacity-60">Manzana</dt>
+                      <dd className="font-medium">{user.manzana || "—"}</dd>
+                    </div>
+                    <div className="grid grid-cols-[110px_1fr] gap-2">
+                      <dt className="opacity-60">Villa</dt>
+                      <dd className="font-medium">{user.villa || "—"}</dd>
                     </div>
                     <div className="grid grid-cols-[110px_1fr] gap-2">
                       <dt className="opacity-60">Rol</dt>

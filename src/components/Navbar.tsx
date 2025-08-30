@@ -107,7 +107,19 @@ export default function Navbar() {
               </span>
               <LogoutButton />
             </>
-          ) : null}
+          ) : (
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium
+                         border border-[var(--brand-primary)] text-[var(--brand-primary)]
+                         hover:bg-[var(--brand-primary)] hover:text-white
+                         dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)]
+                         dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)]
+                         transition"
+            >
+              Iniciar sesión
+            </Link>
+          )}
 
           {/* Toggle tema */}
           <button

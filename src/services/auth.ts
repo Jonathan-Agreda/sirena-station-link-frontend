@@ -1,11 +1,55 @@
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 
-type MeResponse = {
-  sub: string;
-  email?: string;
+// ------------------ Tipos ------------------
+export type UserBase = {
+  id: string;
   username: string;
+  email?: string;
   roles: string[];
+};
+
+export type ResidentMeResponse = {
+  id: string;
+  username: string;
+  email: string;
+  role: "RESIDENTE";
+  firstName: string;
+  lastName: string;
+  etapa: string;
+  manzana: string;
+  villa: string;
+  alicuota: boolean;
+  urbanizacion: {
+    id: string;
+    name: string;
+    maxUsers: number;
+    createdAt: string;
+    updatedAt: string;
+  };
+  siren: {
+    id: string;
+    deviceId: string;
+    apiKey: string;
+    ip: string | null;
+    online: boolean;
+    relay: "ON" | "OFF";
+    sirenState: "ON" | "OFF";
+    lastSeen: string | null;
+    lat: number;
+    lng: number;
+    urbanizationId: string;
+    groupId: string | null;
+    createdAt: string;
+    updatedAt: string;
+    urbanization: {
+      id: string;
+      name: string;
+      maxUsers: number;
+      createdAt: string;
+      updatedAt: string;
+    };
+  };
 };
 
 // ------------------ LOGIN ------------------
@@ -26,13 +70,26 @@ export async function logoutWeb() {
   }
 }
 
-// ------------------ PROFILE (me) ------------------
-export async function fetchMe(): Promise<MeResponse> {
+// ------------------ PROFILE ------------------
+// Devuelve datos enriquecidos para RESIDENTE y datos básicos para ADMIN/otros
+export async function fetchMe(): Promise<UserBase | ResidentMeResponse> {
   const store = useAuthStore.getState();
   if (!store.accessToken) throw new Error("No token disponible");
 
-  const res = await api.get("/auth/me", {
+  // 1. Ver rol básico usando /auth/me
+  const authRes = await api.get<UserBase>("/auth/me", {
     headers: { Authorization: `Bearer ${store.accessToken}` },
   });
-  return res.data;
+
+  const roles = authRes.data.roles || [];
+  if (roles.includes("RESIDENTE")) {
+    // 2. Si es residente, llamar a /residents/me
+    const residentRes = await api.get<ResidentMeResponse>("/residents/me", {
+      headers: { Authorization: `Bearer ${store.accessToken}` },
+    });
+    return residentRes.data;
+  }
+
+  // 3. Caso ADMIN, SUPERADMIN, GUARDIA → devolver info básica
+  return authRes.data;
 }

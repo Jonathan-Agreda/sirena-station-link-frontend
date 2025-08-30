@@ -40,9 +40,9 @@ export default function LoginPage() {
 
       toast.success(`Bienvenido ${res.user.username} 👋`);
 
-      // 🔑 Redirigir según rol
-      const role = res.user.roles?.[0];
-      if (role === "RESIDENTE") {
+      // ✅ Verificar si tiene rol RESIDENTE en cualquier parte del array
+      const roles: string[] = res.user.roles || [];
+      if (roles.includes("RESIDENTE")) {
         router.push("/resident");
       } else {
         router.push("/dashboard");

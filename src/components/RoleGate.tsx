@@ -11,8 +11,8 @@ type RoleGateProps = {
 
 /**
  * Protege rutas según rol.
- * Si no hay sesión -> redirige a /login
- * Si hay sesión pero rol no permitido -> redirige según rol permitido
+ * - Si no hay sesión -> redirige a /login
+ * - Si hay sesión pero sin rol permitido -> redirige según rol principal
  */
 export default function RoleGate({ allowed, children }: RoleGateProps) {
   const { isAuthenticated, user } = useAuthStore();
@@ -23,10 +23,12 @@ export default function RoleGate({ allowed, children }: RoleGateProps) {
     if (!isAuthenticated || !user) {
       router.replace("/login");
     } else {
-      const role = user.roles?.[0] || "RESIDENTE";
-      if (!allowed.includes(role)) {
-        // Redirigir al lugar correcto
-        if (role === "RESIDENTE") {
+      const roles = user.roles || [];
+
+      // ✅ Si el usuario no tiene ninguno de los roles permitidos
+      const hasAllowed = roles.some((r) => allowed.includes(r));
+      if (!hasAllowed) {
+        if (roles.includes("RESIDENTE")) {
           router.replace("/resident");
         } else {
           router.replace("/dashboard");
