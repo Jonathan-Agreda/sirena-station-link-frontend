@@ -12,7 +12,7 @@ export type SirenState = {
   siren: "ON" | "OFF";
   updatedAt: string;
   lastHeartbeatAt?: string;
-  countdown?: number;
+  countdown?: number; // undefined cuando no aplica
 };
 
 export function useGroupSirensSocket(groupId: string) {
@@ -36,6 +36,7 @@ export function useGroupSirensSocket(groupId: string) {
             relay: "OFF",
             siren: "OFF",
             updatedAt: new Date().toISOString(),
+            countdown: undefined,
           }))
         );
       } catch (err) {
@@ -93,6 +94,7 @@ export function useGroupSirensSocket(groupId: string) {
     // --- ACK comandos
     socket.on("device.ack", (ack: any) => {
       if (ack.result !== "OK") return;
+
       if (ack.action === "ON") {
         // Iniciar countdown auto-off
         const ttlSec = process.env.NEXT_PUBLIC_SIRENA_AUTO_OFF
@@ -108,21 +110,35 @@ export function useGroupSirensSocket(groupId: string) {
         if (countdownTimers.current[ack.deviceId]) {
           clearInterval(countdownTimers.current[ack.deviceId]);
         }
+        delete countdownTimers.current[ack.deviceId]; // Limpiamos referencia
+
         countdownTimers.current[ack.deviceId] = setInterval(() => {
           setSirens((prev) =>
-            prev.map((s) =>
-              s.deviceId === ack.deviceId && s.countdown
-                ? { ...s, countdown: s.countdown - 1 }
-                : s
-            )
+            prev.map((s) => {
+              if (s.deviceId === ack.deviceId && s.countdown !== undefined) {
+                if (s.countdown <= 1) {
+                  clearInterval(countdownTimers.current[ack.deviceId]);
+                  delete countdownTimers.current[ack.deviceId];
+                  return { ...s, countdown: undefined };
+                }
+                return { ...s, countdown: s.countdown - 1 };
+              }
+              return s;
+            })
           );
         }, 1000);
       }
+
       if (ack.action === "OFF") {
-        clearInterval(countdownTimers.current[ack.deviceId]);
+        if (countdownTimers.current[ack.deviceId]) {
+          clearInterval(countdownTimers.current[ack.deviceId]);
+          delete countdownTimers.current[ack.deviceId];
+        }
         setSirens((prev) =>
           prev.map((s) =>
-            s.deviceId === ack.deviceId ? { ...s, countdown: 0 } : s
+            s.deviceId === ack.deviceId
+              ? { ...s, countdown: undefined } // 👈 eliminamos el countdown
+              : s
           )
         );
       }
