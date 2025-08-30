@@ -2,7 +2,7 @@
 
 import RoleGate from "@/components/RoleGate";
 import { useQuery } from "@tanstack/react-query";
-import { fetchMe, MeResponse } from "@/services/auth"; // 👈 usamos MeResponse en vez de ResidentMeResponse
+import { fetchMe, MeResponse } from "@/services/auth";
 import { Skeleton } from "@/components/ui/Skeleton";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -18,12 +18,11 @@ export default function SirenaStationPage() {
     queryFn: fetchMe,
   });
 
-  // Sirena seleccionada
   const [selectedSirenId, setSelectedSirenId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.sirens?.length) {
-      setSelectedSirenId(user.sirens[0].deviceId); // por defecto la primera
+      setSelectedSirenId(user.sirens[0].deviceId);
     }
   }, [user]);
 
@@ -75,14 +74,14 @@ export default function SirenaStationPage() {
         ) : user ? (
           <>
             {/* Urbanización + alícuota */}
-            <div className="rounded-xl border p-4 flex items-center justify-between bg-[color-mix(in_oklab,transparent,var(--brand-primary)_6%)] dark:bg-[color-mix(in_oklab,transparent,var(--brand-primary)_10%)]">
+            <div className="rounded-xl border p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-[color-mix(in_oklab,transparent,var(--brand-primary)_6%)] dark:bg-[color-mix(in_oklab,transparent,var(--brand-primary)_10%)]">
               <p className="text-sm sm:text-base">
                 Urbanización:{" "}
                 <strong>{user.urbanizacion?.name || "Sin asignar"}</strong>
               </p>
               <span
                 className={[
-                  "px-4 py-1.5 rounded-full text-xs font-semibold shadow-sm border",
+                  "px-4 py-1.5 rounded-full text-xs font-semibold shadow-sm border self-start sm:self-center",
                   user.alicuota === false
                     ? "bg-[--danger]/10 text-[--danger] border-[--danger]"
                     : "bg-[--success]/10 text-[--success] border-[--success]",
@@ -103,12 +102,12 @@ export default function SirenaStationPage() {
                   alt={`Foto de ${user.urbanizacion?.name || "urbanización"}`}
                   width={1600}
                   height={900}
-                  className="h-64 md:h-full w-full object-cover"
+                  className="h-56 sm:h-64 md:h-full w-full object-cover"
                   priority
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
                 <div className="absolute bottom-3 left-3 text-white drop-shadow">
-                  <p className="text-sm opacity-90">Vista de</p>
+                  <p className="text-xs sm:text-sm opacity-90">Vista de</p>
                   <p className="font-semibold">
                     {user.urbanizacion?.name || "Urbanización"}
                   </p>
@@ -121,27 +120,34 @@ export default function SirenaStationPage() {
                 <div className="rounded-xl border p-4 grid gap-2">
                   <p className="text-sm opacity-70">Tu perfil</p>
                   <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                    <div className="grid grid-cols-[110px_1fr] gap-2">
+                    <div className="grid grid-cols-[90px_1fr] gap-2">
                       <dt className="opacity-60">Usuario</dt>
-                      <dd className="font-medium">{user.username || "—"}</dd>
+                      <dd className="font-medium break-words">
+                        {user.firstName + " " + user.lastName || "—"}
+                      </dd>
                     </div>
-                    <div className="grid grid-cols-[110px_1fr] gap-2">
+                    <div className="grid grid-cols-[90px_1fr] gap-2">
                       <dt className="opacity-60">Email</dt>
-                      <dd className="font-medium">{user.email || "—"}</dd>
+                      <dd
+                        className="font-medium truncate"
+                        title={user.email || "—"}
+                      >
+                        {user.email || "—"}
+                      </dd>
                     </div>
-                    <div className="grid grid-cols-[110px_1fr] gap-2">
+                    <div className="grid grid-cols-[90px_1fr] gap-2">
                       <dt className="opacity-60">Etapa</dt>
                       <dd className="font-medium">{user.etapa || "—"}</dd>
                     </div>
-                    <div className="grid grid-cols-[110px_1fr] gap-2">
+                    <div className="grid grid-cols-[90px_1fr] gap-2">
                       <dt className="opacity-60">Manzana</dt>
                       <dd className="font-medium">{user.manzana || "—"}</dd>
                     </div>
-                    <div className="grid grid-cols-[110px_1fr] gap-2">
+                    <div className="grid grid-cols-[90px_1fr] gap-2">
                       <dt className="opacity-60">Villa</dt>
                       <dd className="font-medium">{user.villa || "—"}</dd>
                     </div>
-                    <div className="grid grid-cols-[110px_1fr] gap-2">
+                    <div className="grid grid-cols-[90px_1fr] gap-2">
                       <dt className="opacity-60">Rol</dt>
                       <dd className="font-medium">{user.role}</dd>
                     </div>
@@ -162,12 +168,11 @@ export default function SirenaStationPage() {
                     </p>
                   ) : (
                     <>
-                      {/* Dropdown si hay varias sirenas */}
                       {user.sirens && user.sirens.length > 1 && (
                         <select
                           value={selectedSirenId || ""}
                           onChange={(e) => setSelectedSirenId(e.target.value)}
-                          className="mb-3 rounded-lg border px-3 py-2 text-sm bg-background"
+                          className="mb-3 rounded-lg border px-3 py-2 text-sm bg-background w-full sm:w-auto"
                         >
                           {user.sirens.map((s) => (
                             <option key={s.deviceId} value={s.deviceId}>
@@ -177,7 +182,6 @@ export default function SirenaStationPage() {
                         </select>
                       )}
 
-                      {/* Nombre arriba */}
                       <p className="text-lg font-bold">
                         {state?.deviceId ||
                           selectedSirenId ||
@@ -185,11 +189,10 @@ export default function SirenaStationPage() {
                           "—"}
                       </p>
 
-                      {/* Botón enorme */}
                       <button
                         onClick={handleToggle}
                         disabled={!state || !state.online}
-                        className={`relative h-64 w-64 rounded-full grid place-items-center text-white font-bold transition ${
+                        className={`relative h-48 w-48 sm:h-64 sm:w-64 rounded-full grid place-items-center text-white font-bold transition ${
                           !state
                             ? "bg-gray-gradient cursor-not-allowed"
                             : !state.online
@@ -200,7 +203,7 @@ export default function SirenaStationPage() {
                         }`}
                       >
                         <div className="flex flex-col items-center">
-                          <span className="text-2xl font-bold">
+                          <span className="text-xl sm:text-2xl font-bold">
                             {!state
                               ? "Sin datos"
                               : state.siren === "ON"
@@ -208,7 +211,7 @@ export default function SirenaStationPage() {
                               : "Encender"}
                           </span>
                           {countdown > 0 && state?.online && (
-                            <span className="text-lg opacity-80 mt-1">
+                            <span className="text-base sm:text-lg opacity-80 mt-1">
                               {formatTime(countdown)}
                             </span>
                           )}

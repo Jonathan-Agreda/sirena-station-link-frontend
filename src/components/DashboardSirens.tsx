@@ -124,15 +124,27 @@ export default function DashboardSirens() {
     if (p === "granted") setAlertsEnabled(true);
   }
 
-  function notifyList(title: string, ids: string[]) {
+  // 🔔 Notificación AGREGADA (reemplaza la anterior)
+  function notifyAggregate(ids: string[]) {
     if (!(typeof window !== "undefined" && "Notification" in window)) return;
     if (Notification.permission !== "granted") return;
-    const body =
-      ids.length === 1
-        ? `${ids[0]} está ON`
-        : `${ids.length} sirenas ON: ${ids.join(", ")}`;
-    const n = new Notification(title, { body, tag: "sirena-alert" });
-    setTimeout(() => n.close(), 5000);
+    if (ids.length === 0) return;
+
+    const title =
+      ids.length === 1 ? "Sirena ACTIVA" : `Sirenas ACTIVAS (${ids.length})`;
+    // Para que sea legible, mostramos hasta 8 y luego un “+N más”
+    const MAX = 8;
+    const shown = ids.slice(0, MAX).join(", ");
+    const rest = ids.length > MAX ? `, +${ids.length - MAX} más` : "";
+    const body = shown + rest;
+
+    // tag para reemplazar; renotify para volver a “pingear”
+    const n = new Notification(title, {
+      body,
+      tag: "sirena-aggregate",
+      renotify: true,
+    });
+    setTimeout(() => n.close(), 6000);
   }
 
   function fireVibration() {
@@ -142,7 +154,7 @@ export default function DashboardSirens() {
     } catch {}
   }
 
-  // 🔔 Notificar nuevas activaciones (OFF->ON)
+  // Detectar nuevas activaciones (OFF->ON) y notificar AGREGADO
   const prevActiveIdsRef = useRef<string[]>([]);
   useEffect(() => {
     const current = activeOnline.map((s) => s.deviceId);
@@ -150,11 +162,8 @@ export default function DashboardSirens() {
     const newlyOn = current.filter((id) => !previous.includes(id));
 
     if (newlyOn.length > 0 && alertsEnabled && !muted) {
-      const title =
-        newlyOn.length === 1
-          ? "Nueva sirena ACTIVADA"
-          : "Nuevas sirenas ACTIVADAS";
-      notifyList(title, newlyOn);
+      // Mostramos TODAS las activas en una única notificación
+      notifyAggregate(current);
       if (soundEnabled) {
         ensureAudioCtx()?.resume?.();
         beep();
@@ -165,13 +174,12 @@ export default function DashboardSirens() {
     prevActiveIdsRef.current = current;
   }, [activeOnline, alertsEnabled, muted, soundEnabled, vibrateEnabled]);
 
-  // 🔁 Recordatorio cada 20s mientras haya alguna activa (resumen de todas las ON)
+  // Recordatorio cada 20s con la lista AGREGADA de TODAS las activas
   useEffect(() => {
     if (!alertsEnabled || muted || activeOnline.length === 0) return;
     const tick = () => {
       const ids = activeOnline.map((s) => s.deviceId);
-      const title = ids.length === 1 ? "Sirena ACTIVADA" : "Sirenas ACTIVADAS";
-      notifyList(title, ids);
+      notifyAggregate(ids);
       if (soundEnabled) {
         ensureAudioCtx()?.resume?.();
         beep();
@@ -189,7 +197,6 @@ export default function DashboardSirens() {
     intervalMs,
   ]);
 
-  // Helpers para botón de notificaciones
   const hasNotifs = typeof window !== "undefined" && "Notification" in window;
   const notifGranted = hasNotifs && Notification.permission === "granted";
   const notifTitle = notifGranted
@@ -216,11 +223,10 @@ export default function DashboardSirens() {
 
         {/* Acciones: bulk + alertas */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Botón encender/apagar todas (solo online) */}
           <button
             onClick={handleBulkToggle}
             disabled={!canBulk}
-            className={`rounded-xl px-4 py-2 text-sm font-semibold text-white transition
+            className={`cursor-pointer rounded-xl px-4 py-2 text-sm font-semibold text-white transition
               ${
                 allOnlineOn
                   ? "bg-red-gradient hover:brightness-110"
@@ -242,7 +248,7 @@ export default function DashboardSirens() {
                   ? setAlertsEnabled((v) => !v)
                   : requestNotifPermission()
               }
-              className={`flex items-center gap-1 rounded-lg px-2 py-1 transition ${
+              className={`cursor-pointer flex items-center gap-1 rounded-lg px-2 py-1 transition ${
                 alertsEnabled
                   ? "bg-emerald-500/15 text-emerald-600"
                   : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
@@ -265,7 +271,7 @@ export default function DashboardSirens() {
                 ensureAudioCtx()?.resume?.();
                 setSoundEnabled((v) => !v);
               }}
-              className={`flex items-center gap-1 rounded-lg px-2 py-1 transition ${
+              className={`cursor-pointer flex items/items-center gap-1 rounded-lg px-2 py-1 transition ${
                 soundEnabled
                   ? "bg-indigo-500/15 text-indigo-600"
                   : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
@@ -281,7 +287,7 @@ export default function DashboardSirens() {
             {/* Vibración */}
             <button
               onClick={() => setVibrateEnabled((v) => !v)}
-              className={`flex items-center gap-1 rounded-lg px-2 py-1 transition ${
+              className={`cursor-pointer flex items-center gap-1 rounded-lg px-2 py-1 transition ${
                 vibrateEnabled
                   ? "bg-cyan-500/15 text-cyan-600"
                   : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
@@ -297,7 +303,7 @@ export default function DashboardSirens() {
             {/* Mute global */}
             <button
               onClick={() => setMuted((v) => !v)}
-              className={`rounded-lg px-2 py-1 transition ${
+              className={`cursor-pointer rounded-lg px-2 py-1 transition ${
                 muted
                   ? "bg-red-500/15 text-red-600"
                   : "hover:bg-neutral-100 dark:hover:bg-neutral-800"

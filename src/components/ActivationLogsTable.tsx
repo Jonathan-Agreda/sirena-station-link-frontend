@@ -38,6 +38,7 @@ export default function ActivationLogsTable() {
     perPage: 25,
     includeRejected: false,
   });
+  const [showFilters, setShowFilters] = useState(false); // 👈 para acordeón en móvil
 
   const { data, isLoading, isFetching } = useQuery<ActivationLogsResponse>({
     queryKey: ["activationLogs", filters],
@@ -80,36 +81,18 @@ export default function ActivationLogsTable() {
       includeRejected: false,
     });
 
-  // 🔹 Exportar Excel con colores
+  // 🔹 Exportar Excel (simplificado)
   const exportExcel = async () => {
     try {
-      const hasFilters =
-        filters.q ||
-        filters.action ||
-        filters.from ||
-        filters.to ||
-        filters.includeRejected;
-
-      const exportFilters: LogsFilters = {
+      const allData = await fetchActivationLogs({
         ...filters,
         page: 1,
         perPage: 100000,
-      };
-
-      if (!hasFilters) {
-        exportFilters.q = "";
-        exportFilters.action = "";
-        exportFilters.from = undefined;
-        exportFilters.to = undefined;
-        exportFilters.includeRejected = true;
-      }
-
-      const allData = await fetchActivationLogs(exportFilters);
+      });
 
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet("Logs");
 
-      // Encabezados
       const header = [
         "Fecha",
         "Sirena",
@@ -123,21 +106,8 @@ export default function ActivationLogsTable() {
       ];
       worksheet.addRow(header);
 
-      worksheet.getRow(1).eachCell((cell, col) => {
-        if (col <= header.length) {
-          cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
-          cell.alignment = { horizontal: "center", vertical: "middle" };
-          cell.fill = {
-            type: "pattern",
-            pattern: "solid",
-            fgColor: { argb: "FF4B5563" },
-          };
-        }
-      });
-
-      // Filas con colores condicionales
       allData.data.forEach((r) => {
-        const row = worksheet.addRow([
+        worksheet.addRow([
           fmt(r.createdAt),
           r.deviceId,
           r.user.username,
@@ -150,75 +120,7 @@ export default function ActivationLogsTable() {
           r.reason ?? "-",
           r.ip ?? "-",
         ]);
-
-        // 🎨 Columna Acción (F)
-        const actionCell = row.getCell(6);
-        if (r.action === "ON") {
-          actionCell.fill = {
-            type: "pattern",
-            pattern: "solid",
-            fgColor: { argb: "FF16A34A" }, // verde
-          };
-          actionCell.font = { color: { argb: "FFFFFFFF" }, bold: true };
-        }
-        if (r.action === "OFF") {
-          actionCell.fill = {
-            type: "pattern",
-            pattern: "solid",
-            fgColor: { argb: "FFDC2626" }, // rojo
-          };
-          actionCell.font = { color: { argb: "FFFFFFFF" }, bold: true };
-        }
-
-        // 🎨 Columna Resultado (G)
-        const resultCell = row.getCell(7);
-        switch (r.result) {
-          case "ACCEPTED":
-            resultCell.fill = {
-              type: "pattern",
-              pattern: "solid",
-              fgColor: { argb: "FF16A34A" },
-            };
-            resultCell.font = { color: { argb: "FFFFFFFF" }, bold: true };
-            break;
-          case "REJECTED":
-            resultCell.fill = {
-              type: "pattern",
-              pattern: "solid",
-              fgColor: { argb: "FFDC2626" },
-            };
-            resultCell.font = { color: { argb: "FFFFFFFF" }, bold: true };
-            break;
-          case "EXECUTED":
-            resultCell.fill = {
-              type: "pattern",
-              pattern: "solid",
-              fgColor: { argb: "FF2563EB" },
-            };
-            resultCell.font = { color: { argb: "FFFFFFFF" }, bold: true };
-            break;
-          case "FAILED":
-            resultCell.fill = {
-              type: "pattern",
-              pattern: "solid",
-              fgColor: { argb: "FFEAB308" },
-            };
-            resultCell.font = { color: { argb: "FF000000" }, bold: true };
-            break;
-        }
       });
-
-      // Auto ancho
-      worksheet.columns.forEach((col) => {
-        let maxLength = 10;
-        col.eachCell({ includeEmpty: true }, (cell) => {
-          const len = cell.value ? cell.value.toString().length : 10;
-          if (len > maxLength) maxLength = len;
-        });
-        col.width = maxLength + 2;
-      });
-
-      worksheet.autoFilter = { from: "A1", to: "I1" };
 
       const buf = await workbook.xlsx.writeBuffer();
       saveAs(
@@ -234,16 +136,33 @@ export default function ActivationLogsTable() {
 
   return (
     <div className="w-full space-y-4">
+      {/* Toggle en móvil */}
+      <div className="sm:hidden">
+        <button
+          onClick={() => setShowFilters((v) => !v)}
+          className="w-full rounded-xl border px-3 py-2 text-sm font-medium 
+               bg-neutral-100 text-neutral-900 hover:bg-neutral-200
+               dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800
+               transition cursor-pointer"
+        >
+          {showFilters ? "Ocultar filtros ▲" : "Mostrar filtros ▼"}
+        </button>
+      </div>
+
       {/* Filtros */}
-      <div className="grid gap-3 sm:grid-cols-8 items-center">
+      <div
+        className={`grid gap-3 sm:grid-cols-8 items-center transition-all ${
+          showFilters ? "grid" : "hidden sm:grid"
+        }`}
+      >
         <input
-          className="rounded-xl border px-3 py-2 outline-none focus:ring sm:col-span-2 cursor-pointer"
+          className="rounded-xl border px-3 py-2 outline-none focus:ring sm:col-span-2 cursor-pointer w-full"
           placeholder="Buscar (sirena, usuario, nombre)"
           value={filters.q}
           onChange={(e) => patch({ q: e.target.value })}
         />
         <select
-          className="rounded-xl border px-3 py-2 outline-none focus:ring cursor-pointer"
+          className="rounded-xl border px-3 py-2 outline-none focus:ring cursor-pointer w-full"
           value={filters.action}
           onChange={(e) =>
             patch({ action: (e.target.value as LogsFilters["action"]) || "" })
@@ -255,17 +174,17 @@ export default function ActivationLogsTable() {
         </select>
         <input
           type="datetime-local"
-          className="rounded-xl border px-3 py-2 outline-none focus:ring cursor-pointer"
+          className="rounded-xl border px-3 py-2 outline-none focus:ring cursor-pointer w-full"
           value={filters.from ?? ""}
           onChange={(e) => patch({ from: e.target.value })}
         />
         <input
           type="datetime-local"
-          className="rounded-xl border px-3 py-2 outline-none focus:ring cursor-pointer"
+          className="rounded-xl border px-3 py-2 outline-none focus:ring cursor-pointer w-full"
           value={filters.to ?? ""}
           onChange={(e) => patch({ to: e.target.value })}
         />
-        <label className="flex items-center gap-2 rounded-xl border px-3 py-2 cursor-pointer">
+        <label className="flex items-center gap-2 rounded-xl border px-3 py-2 cursor-pointer w-full sm:w-auto">
           <input
             type="checkbox"
             className="cursor-pointer"
@@ -276,21 +195,21 @@ export default function ActivationLogsTable() {
         </label>
         <button
           onClick={resetFilters}
-          className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer"
+          className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer w-full sm:w-auto"
         >
           Limpiar filtros
         </button>
         <button
           onClick={exportExcel}
-          className="rounded-xl border px-3 py-2 text-sm bg-green-600 text-white hover:bg-green-700 cursor-pointer"
+          className="rounded-xl border px-3 py-2 text-sm bg-green-600 text-white hover:bg-green-700 cursor-pointer w-full sm:w-auto"
         >
           Exportar Excel
         </button>
       </div>
 
-      {/* Tabla (sin cambios) */}
+      {/* Tabla responsive */}
       <div className="overflow-x-auto rounded-2xl border shadow-sm">
-        <table className="w-full text-sm">
+        <table className="min-w-max w-full text-sm">
           <thead className="bg-neutral-950/5 dark:bg-neutral-50/5">
             <tr>
               <th className="px-3 py-2 text-left">Fecha y Hora</th>
@@ -369,8 +288,8 @@ export default function ActivationLogsTable() {
         </table>
       </div>
 
-      {/* Paginación */}
-      <div className="flex items-center justify-between gap-3">
+      {/* Paginación responsive */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="text-sm text-neutral-500">
           Página {page} de {totalPages} • {total} registros
         </div>

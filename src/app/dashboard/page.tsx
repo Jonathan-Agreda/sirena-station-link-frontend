@@ -28,22 +28,22 @@ export default function DashboardPage() {
 
   return (
     <RoleGate allowed={["ADMIN", "GUARDIA", "SUPERADMIN"] as Role[]}>
-      <section className="min-h-[100svh] w-full px-4 py-6">
+      <section className="min-h-[100svh] w-full px-3 sm:px-4 py-6">
         {/* Header */}
-        <div className="mx-auto flex max-w-6xl items-center gap-4">
-          <LogoAnimated className="h-12 w-12" />
+        <div className="mx-auto flex max-w-6xl flex-col sm:flex-row sm:items-center gap-4">
+          <LogoAnimated className="h-10 w-10 sm:h-12 sm:w-12" />
           <div className="flex flex-col">
             <motion.h1
-              className="text-2xl font-bold"
+              className="text-xl sm:text-2xl font-bold leading-tight"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
             >
               Panel de Activaciones / Desactivaciones
             </motion.h1>
             {isLoading ? (
-              <Skeleton className="mt-1 h-5 w-64" />
+              <Skeleton className="mt-1 h-5 w-40 sm:w-64" />
             ) : (
-              <p className="text-sm text-neutral-500">
+              <p className="text-xs sm:text-sm text-neutral-500">
                 Urbanización:{" "}
                 <span className="font-medium">{urbanizacion}</span>
               </p>
@@ -52,12 +52,12 @@ export default function DashboardPage() {
         </div>
 
         {/* Grupo de sirenas */}
-        <div className="mx-auto mt-4 max-w-6xl">
+        <div className="mx-auto mt-4 max-w-6xl px-1 sm:px-0">
           <DashboardSirens />
         </div>
 
         {/* Tabla de logs */}
-        <div className="mx-auto mt-6 max-w-6xl">
+        <div className="mx-auto mt-6 max-w-6xl px-1 sm:px-0">
           <ActivationLogsTable />
         </div>
       </section>
