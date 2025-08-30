@@ -42,6 +42,8 @@ export default function ActivationLogsTable() {
     queryKey: ["activationLogs", filters],
     queryFn: () => fetchActivationLogs(filters),
     keepPreviousData: true,
+    refetchInterval: 3000, // 🔹 refresca cada 3 segundos
+    refetchOnWindowFocus: true, // 🔹 refresca al volver a la pestaña
   });
 
   const rows = data?.data ?? [];

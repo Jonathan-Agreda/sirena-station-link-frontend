@@ -16,9 +16,14 @@ function formatTime(sec?: number) {
 export default function DashboardSirens() {
   const { sirens, sendCommand } = useDashboardSirens();
 
+  // 🔹 Ordenar por deviceId (alfabéticamente)
+  const sortedSirens = [...sirens].sort((a, b) =>
+    a.deviceId.localeCompare(b.deviceId, "en", { numeric: true })
+  );
+
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {sirens.map((s) => {
+      {sortedSirens.map((s) => {
         const isOn = s.siren === "ON";
         const disabled = !s.online || s.pending;
 
