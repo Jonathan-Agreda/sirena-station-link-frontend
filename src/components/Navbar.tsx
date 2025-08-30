@@ -6,17 +6,23 @@ import { useTheme } from "next-themes";
 import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/auth";
+import { usePathname } from "next/navigation";
 import LogoutButton from "./LogoutButton";
 
 export default function Navbar() {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { isAuthenticated, user } = useAuthStore();
+  const pathname = usePathname();
 
   useEffect(() => setMounted(true), []);
 
   const isDark = mounted && resolvedTheme === "dark";
   const toggle = () => setTheme(isDark ? "light" : "dark");
+
+  // Roles
+  const isResidente = user?.role === "RESIDENTE";
+  const isStaff = ["SUPERADMIN", "ADMIN", "GUARDIA"].includes(user?.role ?? "");
 
   return (
     <header className="navbar">
@@ -71,7 +77,6 @@ export default function Navbar() {
                 opacity="0.7"
               />
             </g>
-            {/* Texto ocultable en móviles */}
             <g transform="translate(64,16)" className="hidden sm:block">
               <text
                 x="0"
@@ -102,6 +107,35 @@ export default function Navbar() {
         <nav className="flex items-center gap-3">
           {isAuthenticated && user ? (
             <>
+              {/* 👇 Links condicionales */}
+              {pathname.startsWith("/dashboard") && (
+                <Link
+                  href="/sirenastation"
+                  className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium
+                             border border-[var(--brand-primary)] text-[var(--brand-primary)]
+                             hover:bg-[var(--brand-primary)] hover:text-white
+                             dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)]
+                             dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)]
+                             transition"
+                >
+                  SirenaStation 📢
+                </Link>
+              )}
+
+              {pathname.startsWith("/sirenastation") && isStaff && (
+                <Link
+                  href="/dashboard"
+                  className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium
+                             border border-[var(--brand-primary)] text-[var(--brand-primary)]
+                             hover:bg-[var(--brand-primary)] hover:text-white
+                             dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)]
+                             dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)]
+                             transition"
+                >
+                  Dashboard 📋
+                </Link>
+              )}
+
               <span className="text-sm opacity-80 hidden sm:inline">
                 {user.username}
               </span>

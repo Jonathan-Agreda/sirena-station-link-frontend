@@ -2,24 +2,30 @@
 
 import RoleGate from "@/components/RoleGate";
 import { useQuery } from "@tanstack/react-query";
-import { fetchMe, ResidentMeResponse } from "@/services/auth";
+import { fetchMe, MeResponse } from "@/services/auth"; // 👈 usamos MeResponse
 import { Skeleton } from "@/components/ui/Skeleton";
 import { LogoAnimated } from "@/components/LogoAnimated";
 import ActivationLogsTable from "@/components/ActivationLogsTable";
 import { motion } from "framer-motion";
+import type { Role } from "@/services/auth";
 
 export default function DashboardPage() {
-  const { data: me, isLoading } = useQuery<ResidentMeResponse>({
+  const { data: me, isLoading } = useQuery<MeResponse>({
     queryKey: ["me"],
     queryFn: fetchMe,
   });
 
-  const urbanizacion =
-    me?.user?.urbanization?.name ??
-    (me?.user?.role === "SUPERADMIN" ? "Global (SUPERADMIN)" : "—");
+  let urbanizacion = "—";
+  if (me?.role === "SUPERADMIN") {
+    urbanizacion = "Global (SUPERADMIN)";
+  } else if (me?.urbanizacion?.name) {
+    urbanizacion = me.urbanizacion.name;
+  } else {
+    urbanizacion = "Sin urbanización asignada";
+  }
 
   return (
-    <RoleGate allowed={["ADMIN", "GUARDIA", "SUPERADMIN"]}>
+    <RoleGate allowed={["ADMIN", "GUARDIA", "SUPERADMIN"] as Role[]}>
       <section className="min-h-[100svh] w-full px-4 py-6">
         {/* Header */}
         <div className="mx-auto flex max-w-6xl items-center gap-4">

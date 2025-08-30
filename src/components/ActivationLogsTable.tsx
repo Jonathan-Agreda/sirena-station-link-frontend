@@ -18,6 +18,17 @@ function fmt(iso: string) {
   }
 }
 
+// Badge helper
+function Badge({ text, color }: { text: string; color: string }) {
+  return (
+    <span
+      className={`px-2 py-0.5 rounded-full text-xs font-semibold text-white ${color}`}
+    >
+      {text}
+    </span>
+  );
+}
+
 export default function ActivationLogsTable() {
   const [filters, setFilters] = useState<LogsFilters>({
     q: "",
@@ -57,18 +68,27 @@ export default function ActivationLogsTable() {
       return merged;
     });
 
+  const resetFilters = () =>
+    setFilters({
+      q: "",
+      action: "",
+      page: 1,
+      perPage: 25,
+      includeRejected: false,
+    });
+
   return (
     <div className="w-full space-y-4">
       {/* Filtros */}
-      <div className="grid gap-3 sm:grid-cols-6">
+      <div className="grid gap-3 sm:grid-cols-7 items-center">
         <input
-          className="rounded-xl border px-3 py-2 outline-none focus:ring sm:col-span-2"
-          placeholder="Buscar (deviceId, usuario, nombre)"
+          className="rounded-xl border px-3 py-2 outline-none focus:ring sm:col-span-2 cursor-pointer"
+          placeholder="Buscar (sirena, usuario, nombre)"
           value={filters.q}
           onChange={(e) => patch({ q: e.target.value })}
         />
         <select
-          className="rounded-xl border px-3 py-2 outline-none focus:ring"
+          className="rounded-xl border px-3 py-2 outline-none focus:ring cursor-pointer"
           value={filters.action}
           onChange={(e) =>
             patch({ action: (e.target.value as LogsFilters["action"]) || "" })
@@ -77,28 +97,34 @@ export default function ActivationLogsTable() {
           <option value="">Acción (todas)</option>
           <option value="ON">ON</option>
           <option value="OFF">OFF</option>
-          <option value="AUTO_OFF">AUTO_OFF</option>
         </select>
         <input
           type="datetime-local"
-          className="rounded-xl border px-3 py-2 outline-none focus:ring"
+          className="rounded-xl border px-3 py-2 outline-none focus:ring cursor-pointer"
           value={filters.from ?? ""}
           onChange={(e) => patch({ from: e.target.value })}
         />
         <input
           type="datetime-local"
-          className="rounded-xl border px-3 py-2 outline-none focus:ring"
+          className="rounded-xl border px-3 py-2 outline-none focus:ring cursor-pointer"
           value={filters.to ?? ""}
           onChange={(e) => patch({ to: e.target.value })}
         />
-        <label className="flex items-center gap-2 rounded-xl border px-3 py-2">
+        <label className="flex items-center gap-2 rounded-xl border px-3 py-2 cursor-pointer">
           <input
             type="checkbox"
+            className="cursor-pointer"
             checked={!!filters.includeRejected}
             onChange={(e) => patch({ includeRejected: e.target.checked })}
           />
           <span className="text-sm">Incluir rechazados</span>
         </label>
+        <button
+          onClick={resetFilters}
+          className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer"
+        >
+          Limpiar filtros
+        </button>
       </div>
 
       {/* Tabla */}
@@ -106,11 +132,11 @@ export default function ActivationLogsTable() {
         <table className="w-full text-sm">
           <thead className="bg-neutral-950/5 dark:bg-neutral-50/5">
             <tr>
-              <th className="px-3 py-2 text-left">Fecha</th>
-              <th className="px-3 py-2 text-left">DeviceID</th>
+              <th className="px-3 py-2 text-left">Fecha y Hora</th>
+              <th className="px-3 py-2 text-left">Sirena</th>
               <th className="px-3 py-2 text-left">Usuario</th>
               <th className="px-3 py-2 text-left">Nombre</th>
-              <th className="px-3 py-2 text-left">Dirección</th>
+              <th className="px-3 py-2 text-left">E/M/V</th>
               <th className="px-3 py-2 text-left">Acción</th>
               <th className="px-3 py-2 text-left">Resultado</th>
               <th className="px-3 py-2 text-left">Razón</th>
@@ -151,8 +177,28 @@ export default function ActivationLogsTable() {
                     {r.user.etapa ?? "-"} / {r.user.manzana ?? "-"} /{" "}
                     {r.user.villa ?? "-"}
                   </td>
-                  <td className="px-3 py-2">{r.action}</td>
-                  <td className="px-3 py-2">{r.result}</td>
+                  <td className="px-3 py-2">
+                    {r.action === "ON" && (
+                      <Badge text="ON" color="bg-green-600" />
+                    )}
+                    {r.action === "OFF" && (
+                      <Badge text="OFF" color="bg-red-600" />
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    {r.result === "ACCEPTED" && (
+                      <Badge text="ACCEPTED" color="bg-green-600" />
+                    )}
+                    {r.result === "REJECTED" && (
+                      <Badge text="REJECTED" color="bg-red-600" />
+                    )}
+                    {r.result === "FAILED" && (
+                      <Badge text="FAILED" color="bg-yellow-600" />
+                    )}
+                    {r.result === "EXECUTED" && (
+                      <Badge text="EXECUTED" color="bg-blue-600" />
+                    )}
+                  </td>
                   <td className="px-3 py-2">{r.reason ?? "-"}</td>
                   <td className="px-3 py-2">{r.ip ?? "-"}</td>
                 </tr>
@@ -171,7 +217,9 @@ export default function ActivationLogsTable() {
           <button
             disabled={disablePrev}
             onClick={() => patch({ page: Math.max(1, page - 1) })}
-            className="rounded-lg border px-3 py-1 disabled:opacity-50"
+            className={`rounded-lg border px-3 py-1 disabled:opacity-50 ${
+              disablePrev ? "cursor-not-allowed" : "cursor-pointer"
+            }`}
             aria-label="Anterior"
           >
             ← Anterior
@@ -179,7 +227,9 @@ export default function ActivationLogsTable() {
           <button
             disabled={disableNext}
             onClick={() => patch({ page: Math.min(totalPages, page + 1) })}
-            className="rounded-lg border px-3 py-1 disabled:opacity-50"
+            className={`rounded-lg border px-3 py-1 disabled:opacity-50 ${
+              disableNext ? "cursor-not-allowed" : "cursor-pointer"
+            }`}
             aria-label="Siguiente"
           >
             Siguiente →

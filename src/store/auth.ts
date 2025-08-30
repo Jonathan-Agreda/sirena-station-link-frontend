@@ -1,17 +1,11 @@
 import { create } from "zustand";
-
-type User = {
-  id: string;
-  username: string;
-  email: string;
-  roles: string[];
-};
+import type { MeResponse } from "@/services/auth"; // 👈 usamos el tipo enriquecido
 
 interface AuthState {
-  user: User | null;
+  user: MeResponse | null;
   accessToken: string | null;
   isAuthenticated: boolean;
-  setAuth: (user: User, token: string) => void;
+  setAuth: (user: MeResponse, token: string) => void;
   logout: () => void;
 }
 
@@ -20,8 +14,15 @@ export const useAuthStore = create<AuthState>((set) => ({
   accessToken: null,
   isAuthenticated: false,
 
-  setAuth: (user, token) =>
-    set({ user, accessToken: token, isAuthenticated: true }),
+  // Guardamos directamente el usuario enriquecido (/residents/me normalizado)
+  setAuth: (user, token) => {
+    set({ user, accessToken: token, isAuthenticated: true });
+  },
 
-  logout: () => set({ user: null, accessToken: null, isAuthenticated: false }),
+  logout: () =>
+    set({
+      user: null,
+      accessToken: null,
+      isAuthenticated: false,
+    }),
 }));

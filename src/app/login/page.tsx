@@ -9,7 +9,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import Link from "next/link";
-import { loginWeb } from "@/services/auth";
+import { loginWeb, homeFor } from "@/services/auth"; // 👈 usamos homeFor centralizado
 import type { AxiosError } from "axios";
 
 // ------------------ Zod Schema ------------------
@@ -36,18 +36,13 @@ export default function LoginPage() {
 
   async function onSubmit(data: LoginForm) {
     try {
-      // usar el service centralizado
+      // 🔹 Login centralizado (ya guarda en store)
       const res = await loginWeb(data.username, data.password);
 
       toast.success(`Bienvenido ${res.user.username} 👋`);
 
-      // ✅ Verificar si tiene rol RESIDENTE en cualquier parte del array
-      const roles: string[] = res.user.roles || [];
-      if (roles.includes("RESIDENTE")) {
-        router.push("/resident");
-      } else {
-        router.push("/dashboard");
-      }
+      // 🔹 Redirección usando helper centralizado
+      router.push(homeFor(res.user.role));
     } catch (err) {
       const axiosErr = err as AxiosError<{ message?: string }>;
 

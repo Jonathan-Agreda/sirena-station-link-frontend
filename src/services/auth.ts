@@ -1,9 +1,12 @@
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 
-// ------------------ Tipos ------------------
+/* ------------------ Tipos ------------------ */
 
-// 👇 Sirena (estructura mínima usada en el frontend)
+// Rol único y tipado (lo usaremos en todo el front)
+export type Role = "SUPERADMIN" | "ADMIN" | "GUARDIA" | "RESIDENTE";
+
+// Sirena (estructura mínima usada en el frontend)
 export type Siren = {
   id: string;
   deviceId: string;
@@ -28,47 +31,85 @@ export type Siren = {
   };
 };
 
-// 👇 Usuario base → respuesta de /auth/me
-export type UserBase = {
-  sub: string; // UUID en Keycloak
-  roles: string[]; // Roles asignados
-};
-
-// 👇 Perfil completo del residente → respuesta de /residents/me
-export type ResidentMeResponse = {
+// Perfil completo → respuesta de /residents/me (para TODOS los roles)
+export type MeResponse = {
   id: string;
   username: string;
-  email: string;
-  role: "RESIDENTE";
-  firstName: string;
-  lastName: string;
-  etapa: string;
-  manzana: string;
-  villa: string;
-  alicuota: boolean;
+  email?: string;
+  role: Role;
+  firstName?: string | null;
+  lastName?: string | null;
+  etapa?: string | null;
+  manzana?: string | null;
+  villa?: string | null;
+  alicuota?: boolean;
   urbanizacion: {
     id: string;
     name: string;
     maxUsers: number;
     createdAt: string;
     updatedAt: string;
-  };
+  } | null;
   sirens: Siren[];
 };
 
-// 👇 Tipo unificado para usar en el front
-export type MeResponse = UserBase | ResidentMeResponse;
+/* ------------------ Helpers ------------------ */
 
-// ------------------ LOGIN ------------------
-export async function loginWeb(usernameOrEmail: string, password: string) {
-  const res = await api.post("/auth/login/web", { usernameOrEmail, password });
-  const { user, accessToken } = res.data;
-
-  useAuthStore.getState().setAuth(user, accessToken);
-  return res.data;
+// A qué página ir según rol (usar después del login)
+export function homeFor(role: Role): "/dashboard" | "/sirenastation" {
+  if (role === "ADMIN" || role === "SUPERADMIN") return "/dashboard";
+  return "/sirenastation"; // RESIDENTE y GUARDIA
 }
 
-// ------------------ LOGOUT ------------------
+// Normaliza cualquier shape de user que venga del backend (roles[] o role)
+function normalizeUser(raw: any): MeResponse {
+  const roleFromArray =
+    Array.isArray(raw?.roles) &&
+    (raw.roles as string[]).find((r) =>
+      ["SUPERADMIN", "ADMIN", "GUARDIA", "RESIDENTE"].includes(r)
+    );
+
+  const role: Role = (raw?.role || roleFromArray || "RESIDENTE") as Role;
+
+  return {
+    id: raw.id,
+    username: raw.username,
+    email: raw.email ?? undefined,
+    role,
+    firstName: raw.firstName ?? raw.firstname ?? null,
+    lastName: raw.lastName ?? raw.lastname ?? null,
+    etapa: raw.etapa ?? null,
+    manzana: raw.manzana ?? null,
+    villa: raw.villa ?? null,
+    // 🔹 Si backend manda false, se respeta
+    alicuota: raw.alicuota !== undefined ? raw.alicuota : true,
+    urbanizacion: raw.urbanizacion ?? null,
+    sirens: Array.isArray(raw.sirens) ? raw.sirens : [],
+  };
+}
+
+/* ------------------ Auth API ------------------ */
+
+// LOGIN: hace login, luego prefetch de /residents/me y guarda en el store
+export async function loginWeb(usernameOrEmail: string, password: string) {
+  // 1) Login (el backend setea cookie de refresh; aquí nos quedamos con accessToken)
+  const res = await api.post("/auth/login/web", { usernameOrEmail, password });
+  const { accessToken } = res.data;
+
+  // 2) Perfil completo (usar token recién emitido)
+  const meRes = await api.get<MeResponse>("/residents/me", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  // 3) Normalizar y guardar en store
+  const user = normalizeUser(meRes.data);
+  useAuthStore.getState().setAuth(user, accessToken);
+
+  // 4) Devolver en un shape consistente
+  return { accessToken, user };
+}
+
+// LOGOUT: cierra sesión en backend y limpia store
 export async function logoutWeb() {
   try {
     await api.post("/auth/logout/web");
@@ -77,26 +118,13 @@ export async function logoutWeb() {
   }
 }
 
-// ------------------ PROFILE (ME) ------------------
-// Devuelve datos enriquecidos para RESIDENTE y datos básicos para otros roles
-export async function fetchMe(): Promise<UserBase | ResidentMeResponse> {
-  const store = useAuthStore.getState();
-  if (!store.accessToken) throw new Error("No token disponible");
+// ME: obtiene el perfil completo (útil en bootstrap o refrescos)
+export async function fetchMe(): Promise<MeResponse> {
+  const { accessToken } = useAuthStore.getState();
+  if (!accessToken) throw new Error("No token disponible");
 
-  // 1. Ver rol básico usando /auth/me
-  const authRes = await api.get<UserBase>("/auth/me", {
-    headers: { Authorization: `Bearer ${store.accessToken}` },
+  const res = await api.get<MeResponse>("/residents/me", {
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
-
-  const roles = authRes.data.roles || [];
-  if (roles.includes("RESIDENTE")) {
-    // 2. Si es residente, llamar a /residents/me
-    const residentRes = await api.get<ResidentMeResponse>("/residents/me", {
-      headers: { Authorization: `Bearer ${store.accessToken}` },
-    });
-    return residentRes.data;
-  }
-
-  // 3. Caso ADMIN, SUPERADMIN, GUARDIA → devolver info básica
-  return authRes.data;
+  return normalizeUser(res.data);
 }

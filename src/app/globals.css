@@ -122,3 +122,9 @@ body {
 .animate-glow {
   animation: pulse-glow 2.5s infinite ease-in-out;
 }
+
+/* Cursor pointer solo en el ícono del calendario */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}

@@ -2,7 +2,7 @@
 
 import RoleGate from "@/components/RoleGate";
 import { useQuery } from "@tanstack/react-query";
-import { fetchMe, ResidentMeResponse } from "@/services/auth";
+import { fetchMe, MeResponse } from "@/services/auth"; // 👈 usamos MeResponse en vez de ResidentMeResponse
 import { Skeleton } from "@/components/ui/Skeleton";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -10,11 +10,12 @@ import { LogoAnimated } from "@/components/LogoAnimated";
 import { useSirenSocket } from "@/hook/useSirenSocket";
 import { toggleSiren } from "@/services/sirens";
 import { useState, useEffect } from "react";
+import type { Role } from "@/services/auth";
 
-export default function ResidentPage() {
-  const { data: user, isLoading } = useQuery<ResidentMeResponse>({
+export default function SirenaStationPage() {
+  const { data: user, isLoading } = useQuery<MeResponse>({
     queryKey: ["me"],
-    queryFn: fetchMe as () => Promise<ResidentMeResponse>,
+    queryFn: fetchMe,
   });
 
   // Sirena seleccionada
@@ -29,7 +30,7 @@ export default function ResidentPage() {
   const { state, countdown } = useSirenSocket(selectedSirenId || "");
 
   async function handleToggle() {
-    if (!state || !state.online) return; // 🔹 si está sin datos u offline → no hace nada
+    if (!state || !state.online) return;
     const action = state.siren === "ON" ? "OFF" : "ON";
     try {
       await toggleSiren(state.deviceId, action);
@@ -38,7 +39,6 @@ export default function ResidentPage() {
     }
   }
 
-  // 🔢 Formatear countdown a mm:ss
   function formatTime(sec: number) {
     const m = Math.floor(sec / 60)
       .toString()
@@ -50,7 +50,9 @@ export default function ResidentPage() {
   }
 
   return (
-    <RoleGate allowed={["RESIDENTE"]}>
+    <RoleGate
+      allowed={["SUPERADMIN", "ADMIN", "GUARDIA", "RESIDENTE"] as Role[]}
+    >
       <section className="container-max page grid gap-8">
         {/* HERO */}
         <motion.div
@@ -141,9 +143,7 @@ export default function ResidentPage() {
                     </div>
                     <div className="grid grid-cols-[110px_1fr] gap-2">
                       <dt className="opacity-60">Rol</dt>
-                      <dd className="font-medium">
-                        {user.role || "Residente"}
-                      </dd>
+                      <dd className="font-medium">{user.role}</dd>
                     </div>
                   </dl>
                 </div>
@@ -185,7 +185,7 @@ export default function ResidentPage() {
                           "—"}
                       </p>
 
-                      {/* Botón enorme con gradientes */}
+                      {/* Botón enorme */}
                       <button
                         onClick={handleToggle}
                         disabled={!state || !state.online}
@@ -215,7 +215,6 @@ export default function ResidentPage() {
                         </div>
                       </button>
 
-                      {/* Estado debajo */}
                       <p className="text-sm opacity-80 mt-3">
                         Estado:{" "}
                         <strong>
