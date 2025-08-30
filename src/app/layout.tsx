@@ -3,7 +3,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { env } from "@/env";
-import { ThemeProvider } from "next-themes";
+import { Providers } from "@/components/Providers";
 
 export const metadata: Metadata = {
   title: `${env.APP_NAME} · ${env.SLOGAN}`,
@@ -18,17 +18,11 @@ export default function RootLayout({
   return (
     <html suppressHydrationWarning lang="es">
       <body className="app-shell">
-        {/* Proveedor de temas */}
-        <ThemeProvider
-          attribute="class" // añade .dark al <html>
-          defaultTheme="light" // arranca claro
-          enableSystem={true} // opcional: respeta tema del sistema
-          disableTransitionOnChange // evita flash
-        >
+        <Providers>
           <Navbar />
           <main className="flex-1">{children}</main>
           <Footer />
-        </ThemeProvider>
+        </Providers>
       </body>
     </html>
   );

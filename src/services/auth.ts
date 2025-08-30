@@ -1,29 +1,27 @@
-import api from "@/lib/api";
+import { create } from "zustand";
 
-export type MeResponse = {
+type User = {
   id: string;
   username: string;
   email?: string;
   roles: string[];
-  alicuota?: boolean;
-  urbanizacion?: { id: string; nombre: string } | null;
-  etapa?: string | null;
-  manzana?: string | null;
-  villa?: string | null;
 };
 
-/** Obtiene el perfil del usuario autenticado */
-export async function fetchMe(): Promise<MeResponse> {
-  const { data } = await api.get<MeResponse>("/auth/me");
-  return data;
+interface AuthState {
+  user: User | null;
+  accessToken: string | null;
+  isAuthenticated: boolean;
+  setAuth: (user: User, token: string) => void;
+  logout: () => void;
 }
 
-/** (futuro) logout API */
-export async function logoutWeb() {
-  return api.post("/auth/logout/web");
-}
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  accessToken: null,
+  isAuthenticated: false,
 
-/** (futuro) refresh API */
-export async function refreshWeb() {
-  return api.post("/auth/refresh/web");
-}
+  setAuth: (user, token) =>
+    set({ user, accessToken: token, isAuthenticated: true }),
+
+  logout: () => set({ user: null, accessToken: null, isAuthenticated: false }),
+}));
