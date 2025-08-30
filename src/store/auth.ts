@@ -1,38 +1,27 @@
 import { create } from "zustand";
 
-export type UserProfile = {
+type User = {
   id: string;
   username: string;
-  email?: string;
+  email: string;
   roles: string[];
 };
 
-type AuthState = {
+interface AuthState {
+  user: User | null;
   accessToken: string | null;
-  profile: UserProfile | null;
   isAuthenticated: boolean;
-  setAuth: (token: string | null, profile: UserProfile | null) => void;
-  clear: () => void;
-};
+  setAuth: (user: User, token: string) => void;
+  logout: () => void;
+}
 
 export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
   accessToken: null,
-  profile: null,
   isAuthenticated: false,
 
-  setAuth: (token, profile) =>
-    set({
-      accessToken: token,
-      profile: profile
-        ? { ...profile, roles: profile.roles ?? [] } // siempre roles array
-        : null,
-      isAuthenticated: !!token && !!profile,
-    }),
+  setAuth: (user, token) =>
+    set({ user, accessToken: token, isAuthenticated: true }),
 
-  clear: () =>
-    set({
-      accessToken: null,
-      profile: null,
-      isAuthenticated: false,
-    }),
+  logout: () => set({ user: null, accessToken: null, isAuthenticated: false }),
 }));

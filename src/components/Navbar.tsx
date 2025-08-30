@@ -11,7 +11,7 @@ import LogoutButton from "./LogoutButton";
 export default function Navbar() {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const { isAuthenticated, profile } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
 
   useEffect(() => setMounted(true), []);
 
@@ -100,10 +100,10 @@ export default function Navbar() {
 
         {/* Right side nav */}
         <nav className="flex items-center gap-3">
-          {isAuthenticated ? (
+          {isAuthenticated && user ? (
             <>
               <span className="text-sm opacity-80 hidden sm:inline">
-                {profile?.username}
+                {user.username}
               </span>
               <LogoutButton />
             </>
