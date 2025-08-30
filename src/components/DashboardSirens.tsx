@@ -38,7 +38,6 @@ export default function DashboardSirens() {
   );
   const anyPending = sortedSirens.some((s) => s.pending);
 
-  // “¿Todas ON?” (entre las online)
   const allOnlineOn =
     online.length > 0 && online.every((s) => s.siren === "ON");
   const bulkTarget: "ON" | "OFF" = allOnlineOn ? "OFF" : "ON";
@@ -58,13 +57,17 @@ export default function DashboardSirens() {
     [online]
   );
 
-  const [alertsEnabled, setAlertsEnabled] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(false);
-  const [vibrateEnabled, setVibrateEnabled] = useState(false);
-  const [muted, setMuted] = useState(false);
+  // Notifs ON por defecto si ya hay permiso; sonido ON por defecto
+  const [alertsEnabled, setAlertsEnabled] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return "Notification" in window && Notification.permission === "granted";
+  });
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [vibrateEnabled, setVibrateEnabled] = useState<boolean>(false);
+  const [muted, setMuted] = useState<boolean>(false);
   const intervalMs = 20000; // cada 20 s
 
-  // Audio (WebAudio) – se inicializa tras un gesto del usuario
+  // Audio (WebAudio)
   const audioCtxRef = useRef<AudioContext | null>(null);
   function ensureAudioCtx() {
     if (!audioCtxRef.current) {
@@ -90,24 +93,44 @@ export default function DashboardSirens() {
     osc.stop(now + 0.26);
   }
 
+  // Reanudar audio en el primer gesto del usuario (para que el beep suene)
+  useEffect(() => {
+    if (!soundEnabled) return;
+    const resume = () => {
+      ensureAudioCtx()?.resume?.();
+    };
+    window.addEventListener("click", resume, { once: true });
+    window.addEventListener("touchstart", resume, { once: true });
+    return () => {
+      window.removeEventListener("click", resume);
+      window.removeEventListener("touchstart", resume);
+    };
+  }, [soundEnabled]);
+
+  // Pedimos permiso automáticamente al montar (si está en "default")
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!("Notification" in window)) return;
+    if (Notification.permission === "default") {
+      Notification.requestPermission().then((p) => {
+        if (p === "granted") setAlertsEnabled(true);
+      });
+    }
+  }, []);
+
   async function requestNotifPermission() {
     if (!(typeof window !== "undefined" && "Notification" in window)) return;
     const p = await Notification.requestPermission();
     if (p === "granted") setAlertsEnabled(true);
   }
 
-  function fireNotification() {
+  function notifyList(title: string, ids: string[]) {
     if (!(typeof window !== "undefined" && "Notification" in window)) return;
     if (Notification.permission !== "granted") return;
-
-    const names = activeOnline.map((s) => s.deviceId).join(", ");
-    const title =
-      activeOnline.length === 1 ? "Sirena ACTIVADA" : "Sirenas ACTIVADAS";
     const body =
-      activeOnline.length === 1
-        ? `${names} está ON`
-        : `${activeOnline.length} sirenas ON: ${names}`;
-
+      ids.length === 1
+        ? `${ids[0]} está ON`
+        : `${ids.length} sirenas ON: ${ids.join(", ")}`;
     const n = new Notification(title, { body, tag: "sirena-alert" });
     setTimeout(() => n.close(), 5000);
   }
@@ -119,46 +142,54 @@ export default function DashboardSirens() {
     } catch {}
   }
 
-  const lastHadActiveRef = useRef(false);
-  function triggerAlert(immediate = false) {
-    if (!alertsEnabled || muted) return;
-    if (activeOnline.length === 0) return;
-
-    fireNotification();
-    if (soundEnabled) {
-      ensureAudioCtx()?.resume?.();
-      beep();
-    }
-    if (vibrateEnabled) fireVibration();
-
-    if (immediate) {
-      // nada extra
-    }
-  }
-
+  // 🔔 Notificar nuevas activaciones (OFF->ON)
+  const prevActiveIdsRef = useRef<string[]>([]);
   useEffect(() => {
-    const hadActive = lastHadActiveRef.current;
-    const hasActive = activeOnline.length > 0;
+    const current = activeOnline.map((s) => s.deviceId);
+    const previous = prevActiveIdsRef.current;
+    const newlyOn = current.filter((id) => !previous.includes(id));
 
-    if (!hadActive && hasActive) {
-      // transición 0 → >0
-      triggerAlert(true);
+    if (newlyOn.length > 0 && alertsEnabled && !muted) {
+      const title =
+        newlyOn.length === 1
+          ? "Nueva sirena ACTIVADA"
+          : "Nuevas sirenas ACTIVADAS";
+      notifyList(title, newlyOn);
+      if (soundEnabled) {
+        ensureAudioCtx()?.resume?.();
+        beep();
+      }
+      if (vibrateEnabled) fireVibration();
     }
-    lastHadActiveRef.current = hasActive;
 
-    if (!alertsEnabled || muted || !hasActive) return;
-    const t = setInterval(() => triggerAlert(false), intervalMs);
+    prevActiveIdsRef.current = current;
+  }, [activeOnline, alertsEnabled, muted, soundEnabled, vibrateEnabled]);
+
+  // 🔁 Recordatorio cada 20s mientras haya alguna activa (resumen de todas las ON)
+  useEffect(() => {
+    if (!alertsEnabled || muted || activeOnline.length === 0) return;
+    const tick = () => {
+      const ids = activeOnline.map((s) => s.deviceId);
+      const title = ids.length === 1 ? "Sirena ACTIVADA" : "Sirenas ACTIVADAS";
+      notifyList(title, ids);
+      if (soundEnabled) {
+        ensureAudioCtx()?.resume?.();
+        beep();
+      }
+      if (vibrateEnabled) fireVibration();
+    };
+    const t = setInterval(tick, intervalMs);
     return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     alertsEnabled,
     muted,
     soundEnabled,
     vibrateEnabled,
-    activeOnline.map((s) => s.deviceId).join("|"),
+    activeOnline,
+    intervalMs,
   ]);
 
-  // Helpers para botón de notificaciones (evita boolean en title)
+  // Helpers para botón de notificaciones
   const hasNotifs = typeof window !== "undefined" && "Notification" in window;
   const notifGranted = hasNotifs && Notification.permission === "granted";
   const notifTitle = notifGranted
