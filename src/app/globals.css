@@ -93,3 +93,32 @@ body {
     dark:border-[color-mix(in_oklab,transparent,white_15%)]
     py-6;
 }
+
+/* =======================
+   Gradientes animados Sirena
+   ======================= */
+.bg-green-gradient {
+  background: radial-gradient(circle at 30% 30%, #4ade80, #16a34a);
+}
+.bg-red-gradient {
+  background: radial-gradient(circle at 30% 30%, #f87171, #dc2626);
+}
+.bg-gray-gradient {
+  background: radial-gradient(circle at 30% 30%, #d1d5db, #6b7280);
+}
+
+/* Animación suave de pulso */
+@keyframes pulse-glow {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.05);
+    filter: brightness(1.15);
+  }
+}
+.animate-glow {
+  animation: pulse-glow 2.5s infinite ease-in-out;
+}

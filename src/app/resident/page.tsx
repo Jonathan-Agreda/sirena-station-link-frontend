@@ -7,18 +7,42 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { LogoAnimated } from "@/components/LogoAnimated";
+import { useSirenSocket } from "@/hook/useSirenSocket";
+import { toggleSiren } from "@/services/sirens";
 
 export default function ResidentPage() {
-  // ✅ obtener perfil desde el backend
   const { data: user, isLoading } = useQuery<ResidentMeResponse>({
     queryKey: ["me"],
     queryFn: fetchMe as () => Promise<ResidentMeResponse>,
   });
 
+  const { state, countdown } = useSirenSocket(user?.siren?.deviceId || "");
+
+  async function handleToggle() {
+    if (!state || !state.online) return; // 🔹 si está sin datos u offline → no hace nada
+    const action = state.siren === "ON" ? "OFF" : "ON";
+    try {
+      await toggleSiren(state.deviceId, action);
+    } catch (err) {
+      console.error("Error enviando comando:", err);
+    }
+  }
+
+  // 🔢 Formatear countdown a mm:ss
+  function formatTime(sec: number) {
+    const m = Math.floor(sec / 60)
+      .toString()
+      .padStart(2, "0");
+    const s = Math.floor(sec % 60)
+      .toString()
+      .padStart(2, "0");
+    return `${m}:${s}`;
+  }
+
   return (
     <RoleGate allowed={["RESIDENTE"]}>
       <section className="container-max page grid gap-8">
-        {/* HERO con LogoAnimated */}
+        {/* HERO */}
         <motion.div
           className="flex justify-center"
           initial={{ opacity: 0, scale: 0.88 }}
@@ -31,7 +55,6 @@ export default function ResidentPage() {
           <LogoAnimated />
         </motion.div>
 
-        {/* Banner urbanización + estado de alícuota */}
         {isLoading ? (
           <div className="grid gap-4">
             <Skeleton className="h-6 w-56" />
@@ -39,13 +62,12 @@ export default function ResidentPage() {
           </div>
         ) : user ? (
           <>
+            {/* Urbanización + alícuota */}
             <div className="rounded-xl border p-4 flex items-center justify-between bg-[color-mix(in_oklab,transparent,var(--brand-primary)_6%)] dark:bg-[color-mix(in_oklab,transparent,var(--brand-primary)_10%)]">
               <p className="text-sm sm:text-base">
                 Urbanización:{" "}
                 <strong>{user.urbanizacion?.name || "Sin asignar"}</strong>
               </p>
-
-              {/* Badge Alicuota */}
               <span
                 className={[
                   "px-4 py-1.5 rounded-full text-xs font-semibold shadow-sm border",
@@ -60,9 +82,9 @@ export default function ResidentPage() {
               </span>
             </div>
 
-            {/* Grid principal */}
+            {/* Main grid */}
             <div className="grid gap-6 md:grid-cols-[1.2fr_1fr]">
-              {/* Foto de la urbanización */}
+              {/* Imagen */}
               <div className="rounded-xl border overflow-hidden relative">
                 <Image
                   src="/urbanitation/savali.jpeg"
@@ -81,11 +103,11 @@ export default function ResidentPage() {
                 </div>
               </div>
 
-              {/* Ficha de usuario + ON/OFF */}
+              {/* Perfil + Sirena */}
               <div className="grid gap-6">
+                {/* Perfil */}
                 <div className="rounded-xl border p-4 grid gap-2">
                   <p className="text-sm opacity-70">Tu perfil</p>
-
                   <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
                     <div className="grid grid-cols-[110px_1fr] gap-2">
                       <dt className="opacity-60">Usuario</dt>
@@ -116,10 +138,10 @@ export default function ResidentPage() {
                   </dl>
                 </div>
 
-                {/* Botón ON/OFF */}
+                {/* Control Sirena */}
                 <div
                   className={[
-                    "rounded-xl p-6 grid place-items-center text-center border",
+                    "rounded-xl p-6 grid place-items-center text-center border gap-3",
                     user.alicuota === false ? "border-[--danger]" : "",
                   ].join(" ")}
                 >
@@ -130,21 +152,55 @@ export default function ResidentPage() {
                     </p>
                   ) : (
                     <>
-                      <p className="text-sm opacity-80 mb-3">
-                        Control ON/OFF (auto-off 5 minutos) — próximamente
+                      {/* Nombre arriba */}
+                      <p className="text-lg font-bold">
+                        {state?.deviceId || user.siren?.deviceId || "—"}
                       </p>
+
+                      {/* Botón enorme con gradientes */}
                       <button
-                        className="relative mx-auto h-28 w-28 rounded-full border-2 border-[--brand-primary] text-[--brand-primary] grid place-items-center disabled:opacity-60"
-                        disabled
-                        aria-disabled
-                        aria-label="Activar / Desactivar sirena"
+                        onClick={handleToggle}
+                        disabled={!state || !state.online}
+                        className={`relative h-64 w-64 rounded-full grid place-items-center text-white font-bold transition ${
+                          !state
+                            ? "bg-gray-gradient cursor-not-allowed"
+                            : !state.online
+                            ? "bg-gray-gradient cursor-not-allowed"
+                            : state.siren === "ON"
+                            ? "bg-red-gradient animate-pulse cursor-pointer"
+                            : "bg-green-gradient hover:brightness-110 cursor-pointer"
+                        }`}
                       >
-                        <span className="absolute inset-0 rounded-full ring-2 ring-[--brand-primary] animate-ping" />
-                        <span className="absolute inset-0 rounded-full ring-2 ring-[--brand-primary] opacity-40" />
-                        <span className="relative font-semibold">ON/OFF</span>
+                        <div className="flex flex-col items-center">
+                          <span className="text-2xl font-bold">
+                            {!state
+                              ? "Sin datos"
+                              : state.siren === "ON"
+                              ? "Apagar"
+                              : "Encender"}
+                          </span>
+                          {countdown > 0 && state.online && (
+                            <span className="text-lg opacity-80 mt-1">
+                              {formatTime(countdown)}
+                            </span>
+                          )}
+                        </div>
                       </button>
-                      <p className="mt-3 text-xs opacity-70">
-                        Estado: <strong>Desconocido</strong>
+
+                      {/* Estado debajo */}
+                      <p className="text-sm opacity-80 mt-3">
+                        Estado:{" "}
+                        <strong>
+                          {!state
+                            ? "Sin datos"
+                            : state.online
+                            ? "Online"
+                            : "Offline"}
+                        </strong>{" "}
+                        · Sirena:{" "}
+                        <strong>
+                          {state?.siren === "ON" ? "Activada" : "Desactivada"}
+                        </strong>
                       </p>
                     </>
                   )}
