@@ -13,7 +13,7 @@ type RoleGateProps = {
 /**
  * Protege rutas según rol.
  * - Si no hay sesión -> login
- * - Si hay sesión y el rol no está en `allowed`, redirect al home válido
+ * - Si hay sesión y el rol no está en `allowed`, se restringe solo en casos específicos.
  */
 export default function RoleGate({ allowed, children }: RoleGateProps) {
   const { isAuthenticated, user } = useAuthStore();
@@ -35,16 +35,14 @@ export default function RoleGate({ allowed, children }: RoleGateProps) {
       return;
     }
 
-    // 🚨 Fallback: si el rol no está permitido en esta ruta
-    if (role === "RESIDENTE") {
-      if (!pathname.startsWith("/sirenastation")) {
-        router.replace("/sirenastation");
-      }
-    } else {
-      if (!pathname.startsWith("/dashboard")) {
-        router.replace("/dashboard");
-      }
+    // 🚨 Restricción mínima: residente no puede entrar a dashboard
+    if (role === "RESIDENTE" && pathname.startsWith("/dashboard")) {
+      router.replace("/sirenastation");
+      return;
     }
+
+    // Otros casos → permitimos continuar (ej: /home, /about, etc.)
+    setChecked(true);
   }, [isAuthenticated, user, allowed, router, pathname]);
 
   if (!checked) {

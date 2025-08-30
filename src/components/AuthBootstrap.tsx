@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { fetchMe, MeResponse, homeFor } from "@/services/auth";
+import { fetchMe, MeResponse } from "@/services/auth";
 import { useAuthStore } from "@/store/auth";
 import { useRouter, usePathname } from "next/navigation";
 import api from "@/lib/api";
@@ -35,7 +35,7 @@ export default function AuthBootstrap() {
               return;
             }
           } catch {
-            useAuthStore.getState().logout(); // limpiar store también
+            useAuthStore.getState().logout();
             router.replace("/login");
             return;
           }
@@ -54,25 +54,11 @@ export default function AuthBootstrap() {
           }
         }
 
-        // 🔹 Validar rutas según rol
+        // 🔹 Validar solo la restricción crítica
         if (currentUser) {
           const { role } = currentUser;
-
-          const canSeeSirenastation = true; // todos los roles
-          const canSeeDashboard = ["SUPERADMIN", "ADMIN", "GUARDIA"].includes(
-            role
-          );
-
-          const isOnSirenastation = pathname.startsWith("/sirenastation");
-          const isOnDashboard = pathname.startsWith("/dashboard");
-
-          if (isOnSirenastation && canSeeSirenastation) return;
-          if (isOnDashboard && canSeeDashboard) return;
-
-          // 🚨 Fallback → si no está en una ruta válida
-          const target = homeFor(role);
-          if (pathname !== target) {
-            router.replace(target);
+          if (role === "RESIDENTE" && pathname.startsWith("/dashboard")) {
+            router.replace("/sirenastation");
           }
         }
       } catch {
