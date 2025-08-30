@@ -1,22 +1,27 @@
 "use client";
 
-import { MeResponse } from "@/services/auth";
+import { MeResponse, ResidentMeResponse } from "@/services/auth";
 
 type Props = {
   user: MeResponse;
 };
 
+// 👇 Type Guard
+function isResident(user: MeResponse): user is ResidentMeResponse {
+  return (user as ResidentMeResponse).role === "RESIDENTE";
+}
+
 export default function ProfileCard({ user }: Props) {
-  const blocked = user.alicuota === false;
+  const blocked = isResident(user) ? user.alicuota === false : false;
 
   return (
     <div className="rounded-xl border p-4 grid gap-2">
       <p className="opacity-80">
-        Hola <strong>{user.username}</strong>
-        {user.urbanizacion?.nombre && (
+        Hola <strong>{"username" in user ? user.username : "Usuario"}</strong>
+        {isResident(user) && user.urbanizacion?.name && (
           <>
             {" "}
-            — Urbanización: <strong>{user.urbanizacion.nombre}</strong>
+            — Urbanización: <strong>{user.urbanizacion.name}</strong>
           </>
         )}
       </p>

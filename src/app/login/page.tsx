@@ -10,6 +10,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import Link from "next/link";
 import { loginWeb } from "@/services/auth";
+import type { AxiosError } from "axios";
 
 // ------------------ Zod Schema ------------------
 const loginSchema = z.object({
@@ -48,13 +49,14 @@ export default function LoginPage() {
         router.push("/dashboard");
       }
     } catch (err) {
-      if (err && typeof err === "object" && "response" in (err as any)) {
-        const axiosErr = err as { response?: { data?: { message?: string } } };
+      const axiosErr = err as AxiosError<{ message?: string }>;
+
+      if (axiosErr.response) {
         const msg =
-          axiosErr.response?.data?.message ||
+          axiosErr.response.data?.message ||
           "Credenciales inválidas o error en login";
         toast.error(msg);
-        console.error("Error login:", err);
+        console.error("Error login:", axiosErr);
       } else {
         toast.error("Error inesperado en login");
         console.error("Error login (desconocido):", err);

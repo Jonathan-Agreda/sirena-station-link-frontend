@@ -1,7 +1,8 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
 import api from "@/lib/api";
 
+// ------------------ Tipos ------------------
 type SirenState = {
   deviceId: string;
   online: boolean;
@@ -10,6 +11,13 @@ type SirenState = {
   updatedAt: string;
 };
 
+type AckPayload = {
+  deviceId: string;
+  action: "ON" | "OFF";
+  result: "OK" | "ERROR";
+};
+
+// ------------------ Hook ------------------
 export function useSirenSocket(deviceId: string) {
   const [state, setState] = useState<SirenState | null>(null);
   const [countdown, setCountdown] = useState<number>(0);
@@ -18,10 +26,37 @@ export function useSirenSocket(deviceId: string) {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // --- Countdown helpers ---
+  const stopCountdown = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setCountdown(0);
+  }, []);
+
+  const startCountdown = useCallback(
+    (seconds: number) => {
+      stopCountdown();
+      setCountdown(seconds);
+      timerRef.current = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            stopCountdown();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    },
+    [stopCountdown]
+  );
+
+  // --- useEffect principal ---
   useEffect(() => {
     if (!deviceId) return;
 
-    // 🔹 Estado inicial
+    // 🔹 Estado inicial desde API
     (async () => {
       try {
         const res = await api.get(`/mqtt/state/${deviceId}`);
@@ -32,10 +67,10 @@ export function useSirenSocket(deviceId: string) {
       }
     })();
 
-    const socket = io(
-      `${process.env.NEXT_PUBLIC_API_URL.replace("/api", "")}/ws`,
-      { withCredentials: true }
-    );
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL!;
+    const socket = io(`${apiUrl.replace("/api", "")}/ws`, {
+      withCredentials: true,
+    });
     socketRef.current = socket;
 
     // --- Handlers ---
@@ -48,7 +83,7 @@ export function useSirenSocket(deviceId: string) {
     socket.on("device.state", updateState);
     socket.on("device.lwt", updateState);
 
-    // 🔹 Heartbeat → actualiza y reinicia watchdog
+    // 🔹 Heartbeat
     socket.on("device.heartbeat", (payload: SirenState) => {
       if (payload.deviceId === deviceId) {
         setState({ ...payload, online: true });
@@ -63,7 +98,7 @@ export function useSirenSocket(deviceId: string) {
     });
 
     // 🔹 ACK comandos
-    socket.on("device.ack", (ack: any) => {
+    socket.on("device.ack", (ack: AckPayload) => {
       if (ack.deviceId === deviceId) {
         if (ack.action === "ON" && ack.result === "OK") {
           startCountdown(
@@ -85,30 +120,7 @@ export function useSirenSocket(deviceId: string) {
         clearTimeout(heartbeatTimeoutRef.current);
       }
     };
-  }, [deviceId]);
-
-  // --- Countdown helpers ---
-  const startCountdown = (seconds: number) => {
-    stopCountdown();
-    setCountdown(seconds);
-    timerRef.current = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          stopCountdown();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  const stopCountdown = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    setCountdown(0);
-  };
+  }, [deviceId, startCountdown, stopCountdown]);
 
   return { state, countdown };
 }

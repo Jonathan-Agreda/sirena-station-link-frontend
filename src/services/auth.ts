@@ -2,13 +2,39 @@ import api from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 
 // ------------------ Tipos ------------------
-export type UserBase = {
+
+// 👇 Sirena (estructura mínima usada en el frontend)
+export type Siren = {
   id: string;
-  username: string;
-  email?: string;
-  roles: string[];
+  deviceId: string;
+  apiKey: string;
+  ip: string | null;
+  online: boolean;
+  relay: "ON" | "OFF";
+  sirenState: "ON" | "OFF";
+  lastSeen: string | null;
+  lat: number;
+  lng: number;
+  urbanizationId: string;
+  groupId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  urbanization: {
+    id: string;
+    name: string;
+    maxUsers: number;
+    createdAt: string;
+    updatedAt: string;
+  };
 };
 
+// 👇 Usuario base → respuesta de /auth/me
+export type UserBase = {
+  sub: string; // UUID en Keycloak
+  roles: string[]; // Roles asignados
+};
+
+// 👇 Perfil completo del residente → respuesta de /residents/me
 export type ResidentMeResponse = {
   id: string;
   username: string;
@@ -27,30 +53,11 @@ export type ResidentMeResponse = {
     createdAt: string;
     updatedAt: string;
   };
-  siren: {
-    id: string;
-    deviceId: string;
-    apiKey: string;
-    ip: string | null;
-    online: boolean;
-    relay: "ON" | "OFF";
-    sirenState: "ON" | "OFF";
-    lastSeen: string | null;
-    lat: number;
-    lng: number;
-    urbanizationId: string;
-    groupId: string | null;
-    createdAt: string;
-    updatedAt: string;
-    urbanization: {
-      id: string;
-      name: string;
-      maxUsers: number;
-      createdAt: string;
-      updatedAt: string;
-    };
-  };
+  sirens: Siren[];
 };
+
+// 👇 Tipo unificado para usar en el front
+export type MeResponse = UserBase | ResidentMeResponse;
 
 // ------------------ LOGIN ------------------
 export async function loginWeb(usernameOrEmail: string, password: string) {

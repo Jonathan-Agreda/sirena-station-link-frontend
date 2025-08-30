@@ -207,7 +207,7 @@ export default function ResidentPage() {
                               ? "Apagar"
                               : "Encender"}
                           </span>
-                          {countdown > 0 && state.online && (
+                          {countdown > 0 && state?.online && (
                             <span className="text-lg opacity-80 mt-1">
                               {formatTime(countdown)}
                             </span>
