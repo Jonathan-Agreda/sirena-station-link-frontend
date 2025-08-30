@@ -2,12 +2,14 @@
 
 import RoleGate from "@/components/RoleGate";
 import { useQuery } from "@tanstack/react-query";
-import { fetchMe, MeResponse } from "@/services/auth"; // 👈 usamos MeResponse
+import { fetchMe, MeResponse } from "@/services/auth";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { LogoAnimated } from "@/components/LogoAnimated";
 import ActivationLogsTable from "@/components/ActivationLogsTable";
 import { motion } from "framer-motion";
 import type { Role } from "@/services/auth";
+
+import GroupSirensStrip from "@/components/GroupSirensStrip";
 
 export default function DashboardPage() {
   const { data: me, isLoading } = useQuery<MeResponse>({
@@ -49,7 +51,12 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Tabla */}
+        {/* Grupo de sirenas */}
+        <div className="mx-auto mt-4 max-w-6xl">
+          <GroupSirensStrip />
+        </div>
+
+        {/* Tabla de logs */}
         <div className="mx-auto mt-6 max-w-6xl">
           <ActivationLogsTable />
         </div>
