@@ -20,20 +20,19 @@ export default function Navbar() {
   const isDark = mounted && resolvedTheme === "dark";
   const toggle = () => setTheme(isDark ? "light" : "dark");
 
-  // Roles
   const isResidente = user?.role === "RESIDENTE";
   const isStaff = ["SUPERADMIN", "ADMIN", "GUARDIA"].includes(user?.role ?? "");
 
   return (
-    <header className="navbar">
-      <div className="container-max flex h-16 items-center justify-between">
-        {/* Logo inline SVG adaptado a modo claro/oscuro */}
+    <header className="navbar border-b dark:border-neutral-800">
+      <div className="container-max flex h-16 items-center justify-between px-3 sm:px-6">
+        {/* Logo */}
         <Link href="/" className="flex items-center gap-2 hover:opacity-90">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             role="img"
-            width="160"
-            height="48"
+            width="120"
+            height="40"
             viewBox="0 0 256 64"
             className="text-[--fg-light] dark:text-[--fg-dark]"
           >
@@ -77,6 +76,7 @@ export default function Navbar() {
                 opacity="0.7"
               />
             </g>
+            {/* Texto solo en sm+ */}
             <g transform="translate(64,16)" className="hidden sm:block">
               <text
                 x="0"
@@ -103,16 +103,14 @@ export default function Navbar() {
           <span className="sr-only">{env.APP_NAME}</span>
         </Link>
 
-        {/* Right side nav */}
-        <nav className="flex items-center gap-3">
+        {/* Right side */}
+        <nav className="flex flex-wrap items-center gap-2 sm:gap-3">
           {isAuthenticated && user ? (
             <>
-              {/* 👇 Links condicionales */}
-              {/* Caso: residente en HOME → botón a SirenaStation */}
               {isResidente && pathname === "/" && (
                 <Link
                   href="/sirenastation"
-                  className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium
+                  className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium
                              border border-[var(--brand-primary)] text-[var(--brand-primary)]
                              hover:bg-[var(--brand-primary)] hover:text-white
                              dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)]
@@ -123,11 +121,10 @@ export default function Navbar() {
                 </Link>
               )}
 
-              {/* Caso: staff dentro de SirenaStation → botón a Dashboard */}
               {pathname.startsWith("/sirenastation") && isStaff && (
                 <Link
                   href="/dashboard"
-                  className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium
+                  className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium
                              border border-[var(--brand-primary)] text-[var(--brand-primary)]
                              hover:bg-[var(--brand-primary)] hover:text-white
                              dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)]
@@ -138,11 +135,10 @@ export default function Navbar() {
                 </Link>
               )}
 
-              {/* Caso: staff dentro de Dashboard → botón a SirenaStation */}
               {pathname.startsWith("/dashboard") && isStaff && (
                 <Link
                   href="/sirenastation"
-                  className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium
+                  className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium
                              border border-[var(--brand-primary)] text-[var(--brand-primary)]
                              hover:bg-[var(--brand-primary)] hover:text-white
                              dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)]
@@ -153,7 +149,7 @@ export default function Navbar() {
                 </Link>
               )}
 
-              <span className="text-sm opacity-80 hidden sm:inline">
+              <span className="hidden sm:inline text-sm opacity-80">
                 {user.username}
               </span>
               <LogoutButton />
@@ -161,7 +157,7 @@ export default function Navbar() {
           ) : (
             <Link
               href="/login"
-              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium
+              className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium
                          border border-[var(--brand-primary)] text-[var(--brand-primary)]
                          hover:bg-[var(--brand-primary)] hover:text-white
                          dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)]
@@ -172,7 +168,7 @@ export default function Navbar() {
             </Link>
           )}
 
-          {/* Toggle tema */}
+          {/* Tema */}
           <button
             onClick={toggle}
             className="rounded-lg p-2 cursor-pointer hover:bg-[color-mix(in_oklab,transparent,black_10%)] dark:hover:bg-[color-mix(in_oklab,transparent,white_10%)]"
