@@ -2,7 +2,7 @@
 
 import RoleGate from "@/components/RoleGate";
 import { useQuery } from "@tanstack/react-query";
-import { fetchMe } from "@/services/auth";
+import { fetchMe, ResidentMeResponse } from "@/services/auth";
 import { Skeleton } from "@/components/ui/Skeleton";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -10,9 +10,9 @@ import { LogoAnimated } from "@/components/LogoAnimated";
 
 export default function ResidentPage() {
   // ✅ obtener perfil desde el backend
-  const { data: user, isLoading } = useQuery({
+  const { data: user, isLoading } = useQuery<ResidentMeResponse>({
     queryKey: ["me"],
-    queryFn: fetchMe,
+    queryFn: fetchMe as () => Promise<ResidentMeResponse>,
   });
 
   return (
@@ -110,7 +110,7 @@ export default function ResidentPage() {
                     <div className="grid grid-cols-[110px_1fr] gap-2">
                       <dt className="opacity-60">Rol</dt>
                       <dd className="font-medium">
-                        {(user.roles && user.roles[0]) || "RESIDENTE"}
+                        {user.role || "Residente"}
                       </dd>
                     </div>
                   </dl>

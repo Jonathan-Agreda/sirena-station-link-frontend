@@ -70,8 +70,8 @@ export async function logoutWeb() {
   }
 }
 
-// ------------------ PROFILE ------------------
-// Devuelve datos enriquecidos para RESIDENTE y datos básicos para ADMIN/otros
+// ------------------ PROFILE (ME) ------------------
+// Devuelve datos enriquecidos para RESIDENTE y datos básicos para otros roles
 export async function fetchMe(): Promise<UserBase | ResidentMeResponse> {
   const store = useAuthStore.getState();
   if (!store.accessToken) throw new Error("No token disponible");
