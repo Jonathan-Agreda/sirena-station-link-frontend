@@ -8,6 +8,8 @@ import {
   ActivationLogsResponse,
 } from "@/services/activationLogs";
 import { Skeleton } from "@/components/ui/Skeleton";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 function fmt(iso: string) {
   try {
@@ -79,10 +81,72 @@ export default function ActivationLogsTable() {
       includeRejected: false,
     });
 
+  // 🔹 Exportar a Excel (aplica filtros si hay, o descarga todo si no hay)
+  const exportExcel = async () => {
+    try {
+      const hasFilters =
+        filters.q ||
+        filters.action ||
+        filters.from ||
+        filters.to ||
+        filters.includeRejected;
+
+      const exportFilters: LogsFilters = {
+        ...filters,
+        page: 1,
+        perPage: 100000,
+      };
+
+      if (!hasFilters) {
+        exportFilters.q = "";
+        exportFilters.action = "";
+        exportFilters.from = undefined;
+        exportFilters.to = undefined;
+        exportFilters.includeRejected = true;
+      }
+
+      const allData = await fetchActivationLogs(exportFilters);
+
+      const exportData = allData.data.map((r) => ({
+        Fecha: fmt(r.createdAt),
+        Sirena: r.deviceId,
+        Usuario: r.user.username,
+        Nombre: r.user.fullName,
+        "E/M/V": `${r.user.etapa ?? "-"} / ${r.user.manzana ?? "-"} / ${
+          r.user.villa ?? "-"
+        }`,
+        Acción: r.action,
+        Resultado: r.result,
+        Razón: r.reason ?? "-",
+        IP: r.ip ?? "-",
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+      // Activar autofiltro en la primera fila
+      const range = XLSX.utils.decode_range(worksheet["!ref"]!);
+      worksheet["!autofilter"] = { ref: XLSX.utils.encode_range(range) };
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Logs");
+
+      const excelBuffer = XLSX.write(workbook, {
+        bookType: "xlsx",
+        type: "array",
+      });
+      const blob = new Blob([excelBuffer], {
+        type: "application/octet-stream",
+      });
+      saveAs(blob, `activation_logs_${Date.now()}.xlsx`);
+    } catch (err) {
+      console.error("❌ Error exportando Excel", err);
+    }
+  };
+
   return (
     <div className="w-full space-y-4">
       {/* Filtros */}
-      <div className="grid gap-3 sm:grid-cols-7 items-center">
+      <div className="grid gap-3 sm:grid-cols-8 items-center">
         <input
           className="rounded-xl border px-3 py-2 outline-none focus:ring sm:col-span-2 cursor-pointer"
           placeholder="Buscar (sirena, usuario, nombre)"
@@ -126,6 +190,13 @@ export default function ActivationLogsTable() {
           className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer"
         >
           Limpiar filtros
+        </button>
+        {/* Botón Exportar */}
+        <button
+          onClick={exportExcel}
+          className="rounded-xl border px-3 py-2 text-sm bg-green-600 text-white hover:bg-green-700 cursor-pointer"
+        >
+          Exportar Excel
         </button>
       </div>
 
