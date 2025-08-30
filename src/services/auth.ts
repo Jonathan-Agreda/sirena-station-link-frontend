@@ -1,27 +1,38 @@
-import { create } from "zustand";
+import api from "@/lib/api";
+import { useAuthStore } from "@/store/auth";
 
-type User = {
-  id: string;
-  username: string;
+type MeResponse = {
+  sub: string;
   email?: string;
+  username: string;
   roles: string[];
 };
 
-interface AuthState {
-  user: User | null;
-  accessToken: string | null;
-  isAuthenticated: boolean;
-  setAuth: (user: User, token: string) => void;
-  logout: () => void;
+// ------------------ LOGIN ------------------
+export async function loginWeb(usernameOrEmail: string, password: string) {
+  const res = await api.post("/auth/login/web", { usernameOrEmail, password });
+  const { user, accessToken } = res.data;
+
+  useAuthStore.getState().setAuth(user, accessToken);
+  return res.data;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  accessToken: null,
-  isAuthenticated: false,
+// ------------------ LOGOUT ------------------
+export async function logoutWeb() {
+  try {
+    await api.post("/auth/logout/web");
+  } finally {
+    useAuthStore.getState().logout();
+  }
+}
 
-  setAuth: (user, token) =>
-    set({ user, accessToken: token, isAuthenticated: true }),
+// ------------------ PROFILE (me) ------------------
+export async function fetchMe(): Promise<MeResponse> {
+  const store = useAuthStore.getState();
+  if (!store.accessToken) throw new Error("No token disponible");
 
-  logout: () => set({ user: null, accessToken: null, isAuthenticated: false }),
-}));
+  const res = await api.get("/auth/me", {
+    headers: { Authorization: `Bearer ${store.accessToken}` },
+  });
+  return res.data;
+}

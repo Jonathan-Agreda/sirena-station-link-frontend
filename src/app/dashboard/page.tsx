@@ -31,9 +31,13 @@ type SirenRow = {
 };
 
 export default function DashboardPage() {
-  const { data, isLoading } = useQuery({ queryKey: ["me"], queryFn: fetchMe });
+  // ✅ fetchMe centralizado desde service
+  const { data: user, isLoading } = useQuery({
+    queryKey: ["me"],
+    queryFn: fetchMe,
+  });
 
-  // Datos mock para la maqueta (mañana los cambiamos por los reales)
+  // Datos mock (para maqueta, luego reemplazamos con backend)
   const mockSirens = useMemo<SirenRow[]>(
     () => [
       {
@@ -99,15 +103,15 @@ export default function DashboardPage() {
   return (
     <RoleGate allowed={["ADMIN", "GUARDIA", "SUPERADMIN"]}>
       <section className="container-max min-h-[calc(100dvh-8rem)] py-8 grid gap-6">
+        {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <h1 className="text-2xl font-bold">Panel de Monitoreo</h1>
 
-          {/* Puedes ocultar esto si no lo quieres en el header */}
           {isLoading ? (
             <Skeleton className="h-10 w-64" />
-          ) : data ? (
+          ) : user ? (
             <div className="max-w-sm w-full sm:w-auto">
-              <ProfileCard user={data} />
+              <ProfileCard user={user} />
             </div>
           ) : null}
         </div>
@@ -190,7 +194,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
-            {/* MAPA (Leaflet placeholder) */}
+            {/* Mapa (placeholder) */}
             <div className="rounded-xl border overflow-hidden">
               <div className="flex items-center justify-between px-4 py-2 border-b">
                 <div className="flex items-center gap-2">
@@ -214,7 +218,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* SIDEBAR */}
+            {/* Sidebar */}
             <div className="grid gap-4">
               {/* Lista de sirenas */}
               <div className="rounded-xl border overflow-hidden">
@@ -277,7 +281,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Árbol (RootTree) */}
+              {/* Árbol */}
               <div className="rounded-xl border overflow-hidden">
                 <div className="flex items-center gap-2 px-4 py-2 border-b">
                   {treeOpen.root ? (
@@ -360,7 +364,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Nota de roadmap */}
+        {/* Nota roadmap */}
         <div className="rounded-xl border p-4 text-sm opacity-80">
           Próximamente: tiempo real con Socket.IO, acciones sobre cada sirena,
           permisos finos por rol y panel de auditoría.
@@ -370,7 +374,7 @@ export default function DashboardPage() {
   );
 }
 
-/* ----------------- UI helpers (maqueta) ----------------- */
+/* ----------------- UI helpers ----------------- */
 function KpiCard({
   title,
   value,

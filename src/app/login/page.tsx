@@ -2,8 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { useAuthStore } from "@/store/auth";
-import api from "@/lib/api";
 import { LogIn } from "lucide-react";
 import { LogoAnimated } from "@/components/LogoAnimated";
 import { useForm } from "react-hook-form";
@@ -11,6 +9,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import Link from "next/link";
+import { loginWeb } from "@/services/auth";
 
 // ------------------ Zod Schema ------------------
 const loginSchema = z.object({
@@ -24,7 +23,6 @@ const loginSchema = z.object({
 type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
-  const setAuth = useAuthStore((s) => s.setAuth);
   const router = useRouter();
 
   const {
@@ -37,17 +35,30 @@ export default function LoginPage() {
 
   async function onSubmit(data: LoginForm) {
     try {
-      const res = await api.post("/auth/login/web", data);
-      setAuth(res.data.user, res.data.accessToken);
+      // usar el service centralizado
+      const res = await loginWeb(data.username, data.password);
 
-      toast.success(`Bienvenido ${res.data.user.username} 👋`);
-      router.push("/dashboard");
-    } catch (err: any) {
-      const msg =
-        err.response?.data?.message ||
-        "Credenciales inválidas o error en login";
-      toast.error(msg);
-      console.error("Error login:", err);
+      toast.success(`Bienvenido ${res.user.username} 👋`);
+
+      // 🔑 Redirigir según rol
+      const role = res.user.roles?.[0];
+      if (role === "RESIDENTE") {
+        router.push("/resident");
+      } else {
+        router.push("/dashboard");
+      }
+    } catch (err) {
+      if (err && typeof err === "object" && "response" in (err as any)) {
+        const axiosErr = err as { response?: { data?: { message?: string } } };
+        const msg =
+          axiosErr.response?.data?.message ||
+          "Credenciales inválidas o error en login";
+        toast.error(msg);
+        console.error("Error login:", err);
+      } else {
+        toast.error("Error inesperado en login");
+        console.error("Error login (desconocido):", err);
+      }
     }
   }
 

@@ -1,57 +1,47 @@
 "use client";
 
-import { ReactNode, useEffect, useState } from "react";
 import { useAuthStore } from "@/store/auth";
 import { useRouter } from "next/navigation";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { useEffect, useState } from "react";
 
-type Props = {
+type RoleGateProps = {
   allowed: string[];
-  redirect?: string;
-  children: ReactNode;
+  children: React.ReactNode;
 };
 
-export default function RoleGate({
-  allowed,
-  redirect = "/login",
-  children,
-}: Props) {
-  const { isAuthenticated, profile } = useAuthStore();
+/**
+ * Protege rutas según rol.
+ * Si no hay sesión -> redirige a /login
+ * Si hay sesión pero rol no permitido -> redirige según rol permitido
+ */
+export default function RoleGate({ allowed, children }: RoleGateProps) {
+  const { isAuthenticated, user } = useAuthStore();
   const router = useRouter();
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    if (!profile) {
-      // todavía no hay datos cargados → esperamos
-      return;
-    }
-
-    if (!isAuthenticated) {
-      router.replace(redirect);
-      return;
-    }
-
-    const hasRole = (profile?.roles || []).some((r) => allowed.includes(r));
-    if (!hasRole) {
-      if ((profile?.roles || []).includes("RESIDENTE")) {
-        router.replace("/resident");
+    if (!isAuthenticated || !user) {
+      router.replace("/login");
+    } else {
+      const role = user.roles?.[0] || "RESIDENTE";
+      if (!allowed.includes(role)) {
+        // Redirigir al lugar correcto
+        if (role === "RESIDENTE") {
+          router.replace("/resident");
+        } else {
+          router.replace("/dashboard");
+        }
       } else {
-        router.replace("/dashboard");
+        setChecked(true);
       }
-      return;
     }
-
-    setChecked(true);
-  }, [isAuthenticated, profile, allowed, router, redirect]);
+  }, [isAuthenticated, user, allowed, router]);
 
   if (!checked) {
-    // Pantalla completa con skeleton shimmer
     return (
-      <section className="min-h-[calc(100dvh-8rem)] container-max grid gap-4 py-8">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-5 w-80" />
-        <Skeleton className="h-28 w-full" />
-      </section>
+      <div className="min-h-[60vh] grid place-items-center text-sm opacity-70">
+        Validando acceso…
+      </div>
     );
   }
 

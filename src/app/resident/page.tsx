@@ -7,15 +7,17 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import Image from "next/image";
 import { motion } from "framer-motion";
 
-export const dynamic = "force-dynamic";
-
 export default function ResidentPage() {
-  const { data, isLoading } = useQuery({ queryKey: ["me"], queryFn: fetchMe });
+  // ✅ obtener perfil desde el backend
+  const { data: user, isLoading } = useQuery({
+    queryKey: ["me"],
+    queryFn: fetchMe,
+  });
 
   return (
     <RoleGate allowed={["RESIDENTE"]}>
       <section className="container-max page grid gap-8">
-        {/* HERO con el mismo logo animado del login */}
+        {/* HERO con logo animado */}
         <motion.div
           className="flex justify-center"
           initial={{ opacity: 0, scale: 0.88 }}
@@ -127,24 +129,24 @@ export default function ResidentPage() {
             <Skeleton className="h-6 w-56" />
             <Skeleton className="h-64 w-full" />
           </div>
-        ) : data ? (
+        ) : user ? (
           <>
             <div className="rounded-xl border p-4 flex items-center justify-between bg-[color-mix(in_oklab,transparent,var(--brand-primary)_6%)] dark:bg-[color-mix(in_oklab,transparent,var(--brand-primary)_10%)]">
               <p className="text-sm sm:text-base">
                 Urbanización:{" "}
-                <strong>{data.urbanizacion?.nombre || "Sin asignar"}</strong>
+                <strong>{user.urbanizacion?.nombre || "Sin asignar"}</strong>
               </p>
 
               <span
                 className={[
                   "px-3 py-1 rounded-full text-xs font-medium",
-                  data.alicuota === false
+                  user.alicuota === false
                     ? "bg-[color-mix(in_oklab,white,#d22_10%)] text-[--danger] border border-[--danger]"
                     : "bg-[color-mix(in_oklab,white,#0a4_10%)] text-[--success] border border-[--success]",
                 ].join(" ")}
                 title="Estado de alícuota"
               >
-                {data.alicuota === false
+                {user.alicuota === false
                   ? "Alícuota pendiente"
                   : "Alícuota al día"}
               </span>
@@ -156,7 +158,7 @@ export default function ResidentPage() {
               <div className="rounded-xl border overflow-hidden relative">
                 <Image
                   src="/urbanitation/savali.jpeg"
-                  alt={`Foto de ${data.urbanizacion?.nombre || "urbanización"}`}
+                  alt={`Foto de ${user.urbanizacion?.nombre || "urbanización"}`}
                   width={1600}
                   height={900}
                   className="h-64 md:h-full w-full object-cover"
@@ -166,7 +168,7 @@ export default function ResidentPage() {
                 <div className="absolute bottom-3 left-3 text-white drop-shadow">
                   <p className="text-sm opacity-90">Vista de</p>
                   <p className="font-semibold">
-                    {data.urbanizacion?.nombre || "Urbanización"}
+                    {user.urbanizacion?.nombre || "Urbanización"}
                   </p>
                 </div>
               </div>
@@ -179,16 +181,16 @@ export default function ResidentPage() {
                   <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
                     <div className="grid grid-cols-[110px_1fr] gap-2">
                       <dt className="opacity-60">Usuario</dt>
-                      <dd className="font-medium">{data.username || "—"}</dd>
+                      <dd className="font-medium">{user.username || "—"}</dd>
                     </div>
                     <div className="grid grid-cols-[110px_1fr] gap-2">
                       <dt className="opacity-60">Email</dt>
-                      <dd className="font-medium">{data.email || "—"}</dd>
+                      <dd className="font-medium">{user.email || "—"}</dd>
                     </div>
                     <div className="grid grid-cols-[110px_1fr] gap-2">
                       <dt className="opacity-60">Dirección</dt>
                       <dd className="font-medium">
-                        {[data.etapa, data.manzana, data.villa]
+                        {[user.etapa, user.manzana, user.villa]
                           .filter(Boolean)
                           .join(" • ") || "—"}
                       </dd>
@@ -196,24 +198,23 @@ export default function ResidentPage() {
                     <div className="grid grid-cols-[110px_1fr] gap-2">
                       <dt className="opacity-60">Rol</dt>
                       <dd className="font-medium">
-                        {(data.roles && data.roles[0]) || "RESIDENTE"}
+                        {(user.roles && user.roles[0]) || "RESIDENTE"}
                       </dd>
                     </div>
                   </dl>
                 </div>
 
-                {/* Botón ON/OFF destacado */}
+                {/* Botón ON/OFF */}
                 <div
                   className={[
                     "rounded-xl p-6 grid place-items-center text-center border",
-                    data.alicuota === false ? "border-[--danger]" : "",
+                    user.alicuota === false ? "border-[--danger]" : "",
                   ].join(" ")}
                 >
-                  {data.alicuota === false ? (
+                  {user.alicuota === false ? (
                     <p className="text-sm">
                       Tu alícuota está pendiente. La activación de la sirena
-                      está
-                      <strong> bloqueada temporalmente</strong>.
+                      está <strong>bloqueada temporalmente</strong>.
                     </p>
                   ) : (
                     <>
@@ -226,7 +227,6 @@ export default function ResidentPage() {
                         aria-disabled
                         aria-label="Activar / Desactivar sirena"
                       >
-                        {/* anillo pulso */}
                         <span className="absolute inset-0 rounded-full ring-2 ring-[--brand-primary] animate-ping" />
                         <span className="absolute inset-0 rounded-full ring-2 ring-[--brand-primary] opacity-40" />
                         <span className="relative font-semibold">ON/OFF</span>

@@ -1,27 +1,23 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/store/auth";
-import api from "@/lib/api";
 import { LogOut } from "lucide-react";
 import { useState } from "react";
+import { logoutWeb } from "@/services/auth";
 
 export default function LogoutButton() {
   const router = useRouter();
-  const logoutStore = useAuthStore((s) => s.logout);
   const [loading, setLoading] = useState(false);
 
   async function handleLogout() {
     try {
       setLoading(true);
-      // Llamada al backend para cerrar sesión
-      await api.post("/auth/logout/web", {}, { withCredentials: true });
+      await logoutWeb(); // service centralizado
+      router.push("/login");
     } catch (err) {
       console.error("Error al cerrar sesión:", err);
     } finally {
-      logoutStore(); // limpiar Zustand
       setLoading(false);
-      router.push("/login");
     }
   }
 
