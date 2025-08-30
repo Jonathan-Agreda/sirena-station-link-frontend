@@ -57,7 +57,8 @@ export type MeResponse = {
 
 // A qué página ir según rol (usar después del login)
 export function homeFor(role: Role): "/dashboard" | "/sirenastation" {
-  if (role === "ADMIN" || role === "SUPERADMIN") return "/dashboard";
+  if (role === "ADMIN" || role === "SUPERADMIN" || role === "GUARDIA")
+    return "/dashboard";
   return "/sirenastation"; // RESIDENTE y GUARDIA
 }
 
