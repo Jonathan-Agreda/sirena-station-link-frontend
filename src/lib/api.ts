@@ -13,7 +13,7 @@ const refreshApi = axios.create({
   withCredentials: true,
 });
 
-// 👉 Adjunta Authorization en cada request si hay token
+// 👉 Adjunta Authorization en cada request si hay token (SIN CAMBIOS)
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
   if (token) {
@@ -23,18 +23,31 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// 👉 Interceptor de respuestas (CON CAMBIOS)
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config;
 
-    if (!error.response) return Promise.reject(error);
+    if (!error.response) {
+      return Promise.reject(error);
+    }
 
-    const isAuth =
+    // 👇 MODIFICACIÓN CLAVE:
+    // Añadimos /auth/prelogin a la lista de endpoints cuyos errores no deben ser manejados globalmente.
+    const isAuthEndpoint =
       original?.url?.includes("/auth/login/web") ||
-      original?.url?.includes("/auth/refresh/web");
-    if (isAuth) return Promise.reject(error);
+      original?.url?.includes("/auth/refresh/web") ||
+      original?.url?.includes("/auth/prelogin"); // <-- LÍNEA AÑADIDA
 
+    if (isAuthEndpoint) {
+      // Si el error viene de una de estas rutas, simplemente lo devolvemos
+      // para que sea manejado por el componente que hizo la llamada (ej. LoginPage).
+      return Promise.reject(error);
+    }
+
+    // El resto de la lógica para manejar sesiones expiradas se mantiene igual.
+    // Esto solo se ejecutará para el resto de las rutas de la app.
     if (error.response.status === 401 && !original._retry) {
       original._retry = true;
       try {
@@ -42,8 +55,11 @@ api.interceptors.response.use(
         const newToken = r.data?.accessToken;
 
         const store = useAuthStore.getState();
-        if (store.user) store.setAuth(store.user, newToken);
-        else store.setAccessToken(newToken);
+        if (store.user) {
+          store.setAuth(store.user, newToken);
+        } else {
+          store.setAccessToken(newToken);
+        }
 
         original.headers = original.headers ?? {};
         original.headers["Authorization"] = `Bearer ${newToken}`;

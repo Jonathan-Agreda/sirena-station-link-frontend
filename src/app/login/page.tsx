@@ -14,7 +14,7 @@ import type { AxiosError } from "axios";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/auth";
 import api from "@/lib/api";
-import FirstPasswordDialog from "@/components/FirstPasswordDialog"; // 👈 Asegúrate de tener el componente
+import FirstPasswordDialog from "@/components/FirstPasswordDialog";
 
 const loginSchema = z.object({
   username: z.string().min(1, "Usuario o email requerido").max(100),
@@ -24,12 +24,17 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>;
 
+type PendingToast = {
+  t: number; // timestamp
+  type: "error" | "success" | "info";
+  msg: string;
+};
+
 export default function LoginPage() {
   const router = useRouter();
   const [rememberActive, setRememberActive] = useState(false);
   const { isAuthenticated, user } = useAuthStore();
 
-  // 👇 estado para primer login (modal)
   const [firstOpen, setFirstOpen] = useState(false);
   const [firstCreds, setFirstCreds] = useState<{
     username: string;
@@ -38,6 +43,26 @@ export default function LoginPage() {
     username: "",
     password: "",
   });
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("login:toast");
+      if (!raw) return;
+
+      const data: PendingToast = JSON.parse(raw);
+
+      if (Date.now() - data.t < 15_000) {
+        const opts = { duration: 6000, important: true } as const;
+        if (data.type === "error") toast.error(data.msg, opts);
+        else if (data.type === "success") toast.success(data.msg, opts);
+        else toast.message(data.msg, opts);
+      }
+
+      localStorage.removeItem("login:toast");
+    } catch {
+      localStorage.removeItem("login:toast");
+    }
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -49,6 +74,8 @@ export default function LoginPage() {
     register,
     handleSubmit,
     setValue,
+    setError,
+    setFocus,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<LoginForm>({
@@ -65,14 +92,13 @@ export default function LoginPage() {
   }, [setValue]);
 
   const remember = watch("remember");
-
   useEffect(() => {
     setRememberActive(!!remember);
   }, [remember]);
 
   async function onSubmit(data: LoginForm) {
+    let preOk = false;
     try {
-      // 1) Prelogin: detecta si KC exige cambio de clave
       const pre = await api.post("/auth/prelogin", {
         usernameOrEmail: data.username,
         password: data.password,
@@ -82,13 +108,51 @@ export default function LoginPage() {
         pre.data?.ok === false &&
         pre.data?.code === "PASSWORD_CHANGE_REQUIRED"
       ) {
-        // 👇 Abrimos modal y le pasamos el usuario + clave temporal
         setFirstCreds({ username: data.username, password: data.password });
         setFirstOpen(true);
         return;
       }
+      preOk = true;
+    } catch (err) {
+      const ax = err as AxiosError<{ message?: string }>;
+      const status = ax.response?.status;
 
-      // 2) Si no requiere cambio → login normal
+      let msg = "No se pudo validar las credenciales";
+      if (status === 401) msg = "Usuario o contraseña incorrectos";
+      else if (status === 404) msg = "Usuario no encontrado";
+      else if (ax.response?.data?.message) msg = ax.response.data.message;
+
+      toast.error(msg, { duration: 6000, important: true });
+      try {
+        const pending: PendingToast = { t: Date.now(), type: "error", msg };
+        localStorage.setItem("login:toast", JSON.stringify(pending));
+      } catch {
+        // ignore
+      }
+
+      if (status === 401) {
+        setError("username", {
+          type: "manual",
+          message: "Usuario o contraseña incorrectos",
+        });
+        setError("password", {
+          type: "manual",
+          message: "Vuelve a intentarlo",
+        });
+      } else if (status === 404) {
+        setError("username", {
+          type: "manual",
+          message: "Usuario no encontrado",
+        });
+      }
+      setValue("password", "");
+      setFocus("username");
+      return;
+    }
+
+    if (!preOk) return;
+
+    try {
       const res = await loginWeb(data.username, data.password);
 
       toast.success(`Bienvenido ${res.user.username} 👋`);
@@ -98,27 +162,21 @@ export default function LoginPage() {
       router.push(homeFor(res.user.role));
     } catch (err) {
       const axiosErr = err as AxiosError<{ message?: string }>;
-      if (axiosErr.response) {
-        const msg =
-          axiosErr.response.data?.message ||
-          "Credenciales inválidas o error en login";
-        toast.error(msg);
-        console.error("Error login:", axiosErr);
-      } else {
-        toast.error("Error inesperado en login");
-        console.error("Error login (desconocido):", err);
-      }
+      const msg =
+        axiosErr.response?.data?.message ||
+        "Credenciales inválidas o error en login";
+      toast.error(msg, { duration: 6000, important: true });
+      console.error("Error login:", axiosErr);
     }
   }
 
   return (
     <>
-      {/* Modal de primer login */}
       <FirstPasswordDialog
         open={firstOpen}
         onClose={() => setFirstOpen(false)}
-        usernameOrEmail={firstCreds.username} // 👈 se pasa al modal
-        currentPassword={firstCreds.password} // 👈 se pasa al modal
+        usernameOrEmail={firstCreds.username}
+        currentPassword={firstCreds.password}
         onSuccess={(me) => {
           toast.success(`Bienvenido ${me.username} 👋`);
           router.push(homeFor(me.role));
@@ -156,10 +214,7 @@ export default function LoginPage() {
                   type="text"
                   placeholder="Usuario o Email"
                   {...register("username")}
-                  className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 
-                             bg-white dark:bg-[var(--bg-dark)] 
-                             text-[var(--fg-light)] dark:text-[var(--fg-dark)] 
-                             focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
+                  className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-[var(--bg-dark)] text-[var(--fg-light)] dark:text-[var(--fg-dark)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
                 />
                 {rememberActive && (
                   <CheckCircle
@@ -178,10 +233,7 @@ export default function LoginPage() {
                 type="password"
                 placeholder="Contraseña"
                 {...register("password")}
-                className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 
-                           bg-white dark:bg-[var(--bg-dark)] 
-                           text-[var(--fg-light)] dark:text-[var(--fg-dark)] 
-                           focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
+                className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-[var(--bg-dark)] text-[var(--fg-light)] dark:text-[var(--fg-dark)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
               />
               {errors.password && (
                 <p className="text-sm text-[var(--danger)]">
