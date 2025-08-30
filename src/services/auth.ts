@@ -129,3 +129,43 @@ export async function fetchMe(): Promise<MeResponse> {
   });
   return normalizeUser(res.data);
 }
+
+/* ------------------ NUEVO: flujo primer login ------------------ */
+
+// Prelogin: detecta si Keycloak exige cambio de contraseña
+export async function prelogin(
+  usernameOrEmail: string,
+  password: string
+): Promise<{ ok: boolean; code?: string }> {
+  const { data } = await api.post("/auth/prelogin", {
+    usernameOrEmail,
+    password,
+  });
+  // { ok: true }  ||  { ok:false, code:'PASSWORD_CHANGE_REQUIRED' }
+  return data;
+}
+
+// Completar primer login: cambia la clave en backend (sin romper cookies),
+// hace /residents/me y guarda en el store, igual que loginWeb
+export async function completeFirstLoginWeb(
+  usernameOrEmail: string,
+  currentPassword: string,
+  newPassword: string
+) {
+  const res = await api.post("/auth/first-login/password", {
+    usernameOrEmail,
+    currentPassword,
+    newPassword,
+  });
+
+  const { accessToken } = res.data as { accessToken: string };
+
+  const meRes = await api.get<MeResponse>("/residents/me", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  const user = normalizeUser(meRes.data);
+  useAuthStore.getState().setAuth(user, accessToken);
+
+  return { accessToken, user };
+}
