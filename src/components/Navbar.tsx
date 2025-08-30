@@ -108,7 +108,8 @@ export default function Navbar() {
           {isAuthenticated && user ? (
             <>
               {/* 👇 Links condicionales */}
-              {pathname.startsWith("/dashboard") && (
+              {/* Caso: residente en HOME → botón a SirenaStation */}
+              {isResidente && pathname === "/" && (
                 <Link
                   href="/sirenastation"
                   className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium
@@ -122,6 +123,7 @@ export default function Navbar() {
                 </Link>
               )}
 
+              {/* Caso: staff dentro de SirenaStation → botón a Dashboard */}
               {pathname.startsWith("/sirenastation") && isStaff && (
                 <Link
                   href="/dashboard"
@@ -133,6 +135,21 @@ export default function Navbar() {
                              transition"
                 >
                   Dashboard 📋
+                </Link>
+              )}
+
+              {/* Caso: staff dentro de Dashboard → botón a SirenaStation */}
+              {pathname.startsWith("/dashboard") && isStaff && (
+                <Link
+                  href="/sirenastation"
+                  className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium
+                             border border-[var(--brand-primary)] text-[var(--brand-primary)]
+                             hover:bg-[var(--brand-primary)] hover:text-white
+                             dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)]
+                             dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)]
+                             transition"
+                >
+                  SirenaStation 📢
                 </Link>
               )}
 

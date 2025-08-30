@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { LogIn, CheckCircle } from "lucide-react"; // 👈 icono check
+import { LogIn, CheckCircle } from "lucide-react";
 import { LogoAnimated } from "@/components/LogoAnimated";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -12,6 +12,7 @@ import Link from "next/link";
 import { loginWeb, homeFor } from "@/services/auth";
 import type { AxiosError } from "axios";
 import { useEffect, useState } from "react";
+import { useAuthStore } from "@/store/auth"; // 👈 importamos el store
 
 // ------------------ Zod Schema ------------------
 const loginSchema = z.object({
@@ -28,6 +29,14 @@ type LoginForm = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const router = useRouter();
   const [rememberActive, setRememberActive] = useState(false);
+  const { isAuthenticated, user } = useAuthStore(); // 👈 usamos el store
+
+  // 🔹 Si ya hay sesión → redirigir según rol
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      router.replace(homeFor(user.role));
+    }
+  }, [isAuthenticated, user, router]);
 
   const {
     register,
@@ -57,23 +66,19 @@ export default function LoginPage() {
 
   async function onSubmit(data: LoginForm) {
     try {
-      // 🔹 Login centralizado (ya guarda en store)
       const res = await loginWeb(data.username, data.password);
 
       toast.success(`Bienvenido ${res.user.username} 👋`);
 
-      // 🔹 Guardar/limpiar según "Recuérdame"
       if (data.remember) {
         localStorage.setItem("rememberUser", data.username);
       } else {
         localStorage.removeItem("rememberUser");
       }
 
-      // 🔹 Redirección usando helper centralizado
       router.push(homeFor(res.user.role));
     } catch (err) {
       const axiosErr = err as AxiosError<{ message?: string }>;
-
       if (axiosErr.response) {
         const msg =
           axiosErr.response.data?.message ||
@@ -103,7 +108,7 @@ export default function LoginPage() {
           <LogoAnimated />
         </motion.div>
 
-        {/* Contenido central con fade-in */}
+        {/* Contenido central */}
         <motion.div
           className="max-w-md mx-auto grid gap-4"
           initial={{ opacity: 0, y: -20 }}
@@ -126,7 +131,6 @@ export default function LoginPage() {
                            text-[var(--fg-light)] dark:text-[var(--fg-dark)] 
                            focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
               />
-              {/* ✅ Icono verde si está activo "Recuérdame" */}
               {rememberActive && (
                 <CheckCircle
                   size={20}
@@ -155,7 +159,6 @@ export default function LoginPage() {
               </p>
             )}
 
-            {/* Checkbox Recuérdame */}
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" {...register("remember")} />
               <span>Recuérdame</span>
