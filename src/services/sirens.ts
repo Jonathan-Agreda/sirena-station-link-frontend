@@ -1,10 +1,20 @@
 import api from "@/lib/api";
 
-export async function toggleSiren(deviceId: string, action: "ON" | "OFF") {
-  const res = await api.post(`/devices/${deviceId}/cmd`, {
+type ToggleCause = "manual" | "group" | "api";
+
+export async function toggleSiren(
+  deviceId: string,
+  action: "ON" | "OFF",
+  opts?: { cause?: ToggleCause; ttlMs?: number }
+) {
+  const ttlMs =
+    opts?.ttlMs ?? (Number(process.env.NEXT_PUBLIC_SIRENA_AUTO_OFF) || 300_000); // 5 min
+  const cause: ToggleCause = opts?.cause ?? "manual";
+
+  const { data } = await api.post(`/devices/${deviceId}/cmd`, {
     action,
-    ttlMs: Number(process.env.NEXT_PUBLIC_SIRENA_AUTO_OFF) || 300000, // 5 minutos por defecto
-    cause: "manual",
+    ttlMs,
+    cause,
   });
-  return res.data;
+  return data;
 }

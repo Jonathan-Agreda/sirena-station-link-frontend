@@ -9,7 +9,7 @@ import ActivationLogsTable from "@/components/ActivationLogsTable";
 import { motion } from "framer-motion";
 import type { Role } from "@/services/auth";
 
-import GroupSirensStrip from "@/components/GroupSirensStrip";
+import DashboardSirens from "@/components/DashboardSirens";
 
 export default function DashboardPage() {
   const { data: me, isLoading } = useQuery<MeResponse>({
@@ -53,7 +53,7 @@ export default function DashboardPage() {
 
         {/* Grupo de sirenas */}
         <div className="mx-auto mt-4 max-w-6xl">
-          <GroupSirensStrip />
+          <DashboardSirens />
         </div>
 
         {/* Tabla de logs */}
