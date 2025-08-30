@@ -8,7 +8,7 @@ import {
   ActivationLogsResponse,
 } from "@/services/activationLogs";
 import { Skeleton } from "@/components/ui/Skeleton";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
 function fmt(iso: string) {
@@ -20,7 +20,6 @@ function fmt(iso: string) {
   }
 }
 
-// Badge helper
 function Badge({ text, color }: { text: string; color: string }) {
   return (
     <span
@@ -37,15 +36,15 @@ export default function ActivationLogsTable() {
     action: "",
     page: 1,
     perPage: 25,
-    includeRejected: false, // por defecto solo ACCEPTED
+    includeRejected: false,
   });
 
   const { data, isLoading, isFetching } = useQuery<ActivationLogsResponse>({
     queryKey: ["activationLogs", filters],
     queryFn: () => fetchActivationLogs(filters),
     keepPreviousData: true,
-    refetchInterval: 3000, // 🔹 refresca cada 3 segundos
-    refetchOnWindowFocus: true, // 🔹 refresca al volver a la pestaña
+    refetchInterval: 3000,
+    refetchOnWindowFocus: true,
   });
 
   const rows = data?.data ?? [];
@@ -81,7 +80,7 @@ export default function ActivationLogsTable() {
       includeRejected: false,
     });
 
-  // 🔹 Exportar a Excel (aplica filtros si hay, o descarga todo si no hay)
+  // 🔹 Exportar Excel con colores
   const exportExcel = async () => {
     try {
       const hasFilters =
@@ -107,37 +106,127 @@ export default function ActivationLogsTable() {
 
       const allData = await fetchActivationLogs(exportFilters);
 
-      const exportData = allData.data.map((r) => ({
-        Fecha: fmt(r.createdAt),
-        Sirena: r.deviceId,
-        Usuario: r.user.username,
-        Nombre: r.user.fullName,
-        "E/M/V": `${r.user.etapa ?? "-"} / ${r.user.manzana ?? "-"} / ${
-          r.user.villa ?? "-"
-        }`,
-        Acción: r.action,
-        Resultado: r.result,
-        Razón: r.reason ?? "-",
-        IP: r.ip ?? "-",
-      }));
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Logs");
 
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      // Encabezados
+      const header = [
+        "Fecha",
+        "Sirena",
+        "Usuario",
+        "Nombre",
+        "E/M/V",
+        "Acción",
+        "Resultado",
+        "Razón",
+        "IP",
+      ];
+      worksheet.addRow(header);
 
-      // Activar autofiltro en la primera fila
-      const range = XLSX.utils.decode_range(worksheet["!ref"]!);
-      worksheet["!autofilter"] = { ref: XLSX.utils.encode_range(range) };
-
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Logs");
-
-      const excelBuffer = XLSX.write(workbook, {
-        bookType: "xlsx",
-        type: "array",
+      worksheet.getRow(1).eachCell((cell, col) => {
+        if (col <= header.length) {
+          cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+          cell.alignment = { horizontal: "center", vertical: "middle" };
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FF4B5563" },
+          };
+        }
       });
-      const blob = new Blob([excelBuffer], {
-        type: "application/octet-stream",
+
+      // Filas con colores condicionales
+      allData.data.forEach((r) => {
+        const row = worksheet.addRow([
+          fmt(r.createdAt),
+          r.deviceId,
+          r.user.username,
+          r.user.fullName,
+          `${r.user.etapa ?? "-"} / ${r.user.manzana ?? "-"} / ${
+            r.user.villa ?? "-"
+          }`,
+          r.action,
+          r.result,
+          r.reason ?? "-",
+          r.ip ?? "-",
+        ]);
+
+        // 🎨 Columna Acción (F)
+        const actionCell = row.getCell(6);
+        if (r.action === "ON") {
+          actionCell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FF16A34A" }, // verde
+          };
+          actionCell.font = { color: { argb: "FFFFFFFF" }, bold: true };
+        }
+        if (r.action === "OFF") {
+          actionCell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFDC2626" }, // rojo
+          };
+          actionCell.font = { color: { argb: "FFFFFFFF" }, bold: true };
+        }
+
+        // 🎨 Columna Resultado (G)
+        const resultCell = row.getCell(7);
+        switch (r.result) {
+          case "ACCEPTED":
+            resultCell.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: "FF16A34A" },
+            };
+            resultCell.font = { color: { argb: "FFFFFFFF" }, bold: true };
+            break;
+          case "REJECTED":
+            resultCell.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: "FFDC2626" },
+            };
+            resultCell.font = { color: { argb: "FFFFFFFF" }, bold: true };
+            break;
+          case "EXECUTED":
+            resultCell.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: "FF2563EB" },
+            };
+            resultCell.font = { color: { argb: "FFFFFFFF" }, bold: true };
+            break;
+          case "FAILED":
+            resultCell.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: "FFEAB308" },
+            };
+            resultCell.font = { color: { argb: "FF000000" }, bold: true };
+            break;
+        }
       });
-      saveAs(blob, `activation_logs_${Date.now()}.xlsx`);
+
+      // Auto ancho
+      worksheet.columns.forEach((col) => {
+        let maxLength = 10;
+        col.eachCell({ includeEmpty: true }, (cell) => {
+          const len = cell.value ? cell.value.toString().length : 10;
+          if (len > maxLength) maxLength = len;
+        });
+        col.width = maxLength + 2;
+      });
+
+      worksheet.autoFilter = { from: "A1", to: "I1" };
+
+      const buf = await workbook.xlsx.writeBuffer();
+      saveAs(
+        new Blob([buf], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+        `activation_logs_${Date.now()}.xlsx`
+      );
     } catch (err) {
       console.error("❌ Error exportando Excel", err);
     }
@@ -191,7 +280,6 @@ export default function ActivationLogsTable() {
         >
           Limpiar filtros
         </button>
-        {/* Botón Exportar */}
         <button
           onClick={exportExcel}
           className="rounded-xl border px-3 py-2 text-sm bg-green-600 text-white hover:bg-green-700 cursor-pointer"
@@ -200,7 +288,7 @@ export default function ActivationLogsTable() {
         </button>
       </div>
 
-      {/* Tabla */}
+      {/* Tabla (sin cambios) */}
       <div className="overflow-x-auto rounded-2xl border shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-neutral-950/5 dark:bg-neutral-50/5">
