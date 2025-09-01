@@ -1,109 +1,88 @@
 "use client";
 import { motion } from "framer-motion";
-import { env } from "@/env";
+import { Logo } from "@/components/Logo";
 
 export function LogoAnimated() {
   return (
     <motion.div
       className="flex justify-center"
-      initial={{ opacity: 0, scale: 0.88 }}
-      animate={{ opacity: 1, scale: [1, 1.06, 1] }}
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: [1, 1.05, 1] }}
       transition={{
         opacity: { duration: 1.1, ease: "easeOut" },
         scale: { duration: 3, repeat: Infinity, ease: "easeInOut" },
       }}
     >
-      <div className="relative w-full max-w-[560px] mx-auto flex justify-center pointer-events-none">
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 size-[min(70vw,28rem)] rounded-full bg-[radial-gradient(circle,var(--brand-primary)_0%,transparent_70%)] opacity-30 animate-pulse pointer-events-none" />
+      <div className="relative w-full max-w-[420px] mx-auto flex justify-center pointer-events-none logo-animated">
+        {/* Halo animado detrás */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 size-[min(60vw,20rem)] rounded-full bg-[radial-gradient(circle,var(--brand-primary)_0%,transparent_70%)] opacity-25 animate-background-pulse pointer-events-none" />
 
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 500 120"
-          className="relative mx-auto w-[min(92vw,520px)] h-auto text-[--fg-light] dark:text-[--fg-dark] pointer-events-none"
-          preserveAspectRatio="xMidYMid meet"
-        >
-          <defs>
-            <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="var(--brand-primary)" />
-              <stop offset="1" stopColor="var(--accent)" />
-            </linearGradient>
-            <linearGradient id="shine" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="white" stopOpacity="0" />
-              <stop offset="50%" stopColor="white" stopOpacity="0.6" />
-              <stop offset="100%" stopColor="white" stopOpacity="0" />
-            </linearGradient>
-            <mask id="shine-mask">
-              <rect width="100%" height="100%" fill="url(#shine)">
-                <animateTransform
-                  attributeName="transform"
-                  type="translate"
-                  from="-500 0"
-                  to="500 0"
-                  dur="4s"
-                  repeatCount="indefinite"
-                />
-              </rect>
-            </mask>
-          </defs>
+        {/* Logo */}
+        <div className="relative mx-auto w-[min(80vw,420px)] h-auto text-[--fg-light] dark:text-[--fg-dark] pointer-events-none">
+          <Logo className="w-full h-auto" />
+        </div>
 
-          {/* Ícono (altavoz 📢) */}
-          <g transform="translate(20,28)">
-            {/* Caja del altavoz */}
-            <rect
-              x="0"
-              y="32"
-              width="14"
-              height="20"
-              rx="3"
-              fill="var(--brand-primary)"
-            />
-            {/* Trompeta */}
-            <polygon
-              points="14,32 36,20 36,64 14,52"
-              fill="var(--brand-primary)"
-            />
+        {/* Estilos para las animaciones sincronizadas */}
+        <style jsx global>{`
+          .logo-animated .wave1,
+          .logo-animated .wave2 {
+            transform-box: fill-box;
+            transform-origin: center;
+            will-change: opacity, transform, stroke-width;
+          }
 
-            {/* Ondas sonoras */}
-            <path
-              d="M44,28 C58,34 58,50 44,56"
-              fill="none"
-              stroke="url(#g)"
-              strokeWidth="4"
-              strokeLinecap="round"
-              mask="url(#shine-mask)"
-            />
-            <path
-              d="M52,22 C72,34 72,50 52,62"
-              fill="none"
-              stroke="url(#g)"
-              strokeWidth="4"
-              strokeLinecap="round"
-              opacity="0.7"
-              mask="url(#shine-mask)"
-            />
-          </g>
+          /* Animación del pulso de fondo, sincronizada con las ondas */
+          .animate-background-pulse {
+            animation: backgroundPulse 2.5s ease-in-out infinite;
+          }
 
-          {/* Marca */}
-          <g transform="translate(90,55)">
-            <text
-              fontFamily="Inter, system-ui, sans-serif"
-              fontSize="38"
-              fontWeight="700"
-              fill="currentColor"
-            >
-              {env.APP_NAME}
-            </text>
-            <text
-              y="32"
-              fontFamily="Inter, system-ui, sans-serif"
-              fontSize="18"
-              fill="currentColor"
-              opacity="0.7"
-            >
-              {env.SLOGAN}
-            </text>
-          </g>
-        </svg>
+          @keyframes backgroundPulse {
+            0%,
+            100% {
+              opacity: 0.25;
+              transform: scale(1);
+            }
+            50% {
+              opacity: 0.6;
+              transform: scale(1.05);
+            }
+          }
+
+          /* Animación de PROPAGACIÓN para las ondas */
+          .logo-animated .wave1 {
+            animation: wavePropagate 2.5s ease-out infinite; /* Usamos ease-out para que el inicio sea rápido */
+          }
+          .logo-animated .wave2 {
+            animation: wavePropagate 2.5s ease-out 1.25s infinite; /* Desfasada por la mitad del tiempo */
+          }
+
+          @keyframes wavePropagate {
+            0% {
+              opacity: 0;
+              transform: translateX(0) scale(0.9);
+              stroke-width: 2.5;
+            }
+            50% {
+              opacity: 1;
+              stroke-width: 3.2;
+            }
+            100% {
+              opacity: 0;
+              /* La onda se ha movido 12px a la derecha y es un 15% más grande */
+              transform: translateX(12px) scale(1.15);
+              stroke-width: 2;
+            }
+          }
+
+          /* Respeta usuarios con reduced-motion */
+          @media (prefers-reduced-motion: reduce) {
+            .logo-animated .wave1,
+            .logo-animated .wave2,
+            .animate-background-pulse {
+              animation: none !important;
+            }
+          }
+        `}</style>
       </div>
     </motion.div>
   );

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="320" height="80" viewBox="0 0 256 64" class="text-[--brand-primary] dark:text-white">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 64">
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="var(--brand-primary)" />
@@ -10,9 +10,11 @@
     <rect x="0" y="22" width="12" height="16" rx="2" fill="var(--brand-primary)" />
     <!-- Trompeta -->
     <polygon points="12,22 26,14 26,46 12,38" fill="var(--brand-primary)" />
-    <!-- Ondas de sonido -->
-    <path d="M32,20 C42,26 42,36 32,42" fill="none" stroke="url(#g)" stroke-width="3" stroke-linecap="round"/>
-    <path d="M38,16 C52,26 52,36 38,46" fill="none" stroke="url(#g)" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+    <!-- Ondas de sonido con clases -->
+    <path class="wave1" d="M32,20 C42,26 42,36 32,42"
+          fill="none" stroke="url(#g)" stroke-width="3" stroke-linecap="round" />
+    <path class="wave2" d="M38,16 C52,26 52,36 38,46"
+          fill="none" stroke="url(#g)" stroke-width="3" stroke-linecap="round" opacity="0.7" />
   </g>
   <g transform="translate(64,16)">
     <text x="0" y="18" font-family="Inter, system-ui, sans-serif" font-size="20" font-weight="700" fill="currentColor">

@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/auth";
 import { usePathname } from "next/navigation";
 import LogoutButton from "./LogoutButton";
+import { Logo } from "@/components/Logo";
 
 export default function Navbar() {
   const { resolvedTheme, setTheme } = useTheme();
@@ -28,76 +29,10 @@ export default function Navbar() {
       <div className="container-max flex h-16 items-center justify-between px-3 sm:px-6">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 hover:opacity-90">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            role="img"
-            width="120"
-            height="40"
-            viewBox="0 0 256 64"
-            className="text-[--fg-light] dark:text-[--fg-dark]"
-          >
-            <defs>
-              <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stopColor="var(--brand-primary)" />
-                <stop offset="1" stopColor="var(--accent)" />
-              </linearGradient>
-            </defs>
-            <g transform="translate(8,8)">
-              {/* Caja del altavoz */}
-              <rect
-                x="0"
-                y="22"
-                width="12"
-                height="16"
-                rx="2"
-                fill="var(--brand-primary)"
-              />
-              {/* Trompeta */}
-              <polygon
-                points="12,22 26,14 26,46 12,38"
-                fill="var(--brand-primary)"
-              />
-              {/* Ondas */}
-              <path
-                d="M32,20 C42,26 42,36 32,42"
-                fill="none"
-                stroke="url(#g)"
-                strokeWidth="3"
-                strokeLinecap="round"
-              />
-              <path
-                d="M38,16 C52,26 52,36 38,46"
-                fill="none"
-                stroke="url(#g)"
-                strokeWidth="3"
-                strokeLinecap="round"
-                opacity="0.7"
-              />
-            </g>
-            {/* Texto solo en sm+ */}
-            <g transform="translate(64,16)" className="hidden sm:block">
-              <text
-                x="0"
-                y="18"
-                fontFamily="Inter, system-ui, sans-serif"
-                fontSize="20"
-                fontWeight="700"
-                fill="currentColor"
-              >
-                {env.APP_NAME}
-              </text>
-              <text
-                x="0"
-                y="40"
-                fontFamily="Inter, system-ui, sans-serif"
-                fontSize="13"
-                fill="currentColor"
-                opacity="0.7"
-              >
-                {env.SLOGAN}
-              </text>
-            </g>
-          </svg>
+          <Logo
+            className="h-8 sm:h-10 w-auto text-[--fg-light] dark:text-[--fg-dark]"
+            animateWaves
+          />
           <span className="sr-only">{env.APP_NAME}</span>
         </Link>
 
@@ -109,11 +44,11 @@ export default function Navbar() {
                 <Link
                   href="/sirenastation"
                   className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium
-                             border border-[var(--brand-primary)] text-[var(--brand-primary)]
-                             hover:bg-[var(--brand-primary)] hover:text-white
-                             dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)]
-                             dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)]
-                             transition"
+                                   border border-[var(--brand-primary)] text-[var(--brand-primary)]
+                                   hover:bg-[var(--brand-primary)] hover:text-white
+                                   dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)]
+                                   dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)]
+                                   transition"
                 >
                   SirenaStation 📢
                 </Link>
@@ -123,11 +58,11 @@ export default function Navbar() {
                 <Link
                   href="/dashboard"
                   className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium
-                             border border-[var(--brand-primary)] text-[var(--brand-primary)]
-                             hover:bg-[var(--brand-primary)] hover:text-white
-                             dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)]
-                             dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)]
-                             transition"
+                                   border border-[var(--brand-primary)] text-[var(--brand-primary)]
+                                   hover:bg-[var(--brand-primary)] hover:text-white
+                                   dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)]
+                                   dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)]
+                                   transition"
                 >
                   Dashboard 📋
                 </Link>
@@ -137,11 +72,11 @@ export default function Navbar() {
                 <Link
                   href="/sirenastation"
                   className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium
-                             border border-[var(--brand-primary)] text-[var(--brand-primary)]
-                             hover:bg-[var(--brand-primary)] hover:text-white
-                             dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)]
-                             dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)]
-                             transition"
+                                   border border-[var(--brand-primary)] text-[var(--brand-primary)]
+                                   hover:bg-[var(--brand-primary)] hover:text-white
+                                   dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)]
+                                   dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)]
+                                   transition"
                 >
                   SirenaStation 📢
                 </Link>
@@ -156,11 +91,11 @@ export default function Navbar() {
             <Link
               href="/login"
               className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium
-                         border border-[var(--brand-primary)] text-[var(--brand-primary)]
-                         hover:bg-[var(--brand-primary)] hover:text-white
-                         dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)]
-                         dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)]
-                         transition"
+                               border border-[var(--brand-primary)] text-[var(--brand-primary)]
+                               hover:bg-[var(--brand-primary)] hover:text-white
+                               dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)]
+                               dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)]
+                               transition"
             >
               Iniciar sesión
             </Link>
