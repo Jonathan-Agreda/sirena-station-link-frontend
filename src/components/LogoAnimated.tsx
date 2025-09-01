@@ -46,27 +46,26 @@ export function LogoAnimated() {
             </mask>
           </defs>
 
-          {/* Ícono */}
+          {/* Ícono (altavoz 📢) */}
           <g transform="translate(20,28)">
+            {/* Caja del altavoz */}
             <rect
               x="0"
-              y="20"
-              width="40"
-              height="32"
-              rx="6"
-              fill="var(--brand-primary)"
-            />
-            <rect
-              x="8"
-              y="12"
-              width="20"
-              height="12"
+              y="32"
+              width="14"
+              height="20"
               rx="3"
               fill="var(--brand-primary)"
             />
-            <circle cx="20" cy="36" r="5" fill="var(--brand-primary-fg)" />
+            {/* Trompeta */}
+            <polygon
+              points="14,32 36,20 36,64 14,52"
+              fill="var(--brand-primary)"
+            />
+
+            {/* Ondas sonoras */}
             <path
-              d="M46,28 C60,20 60,60 46,52"
+              d="M44,28 C58,34 58,50 44,56"
               fill="none"
               stroke="url(#g)"
               strokeWidth="4"
@@ -74,7 +73,7 @@ export function LogoAnimated() {
               mask="url(#shine-mask)"
             />
             <path
-              d="M52,24 C72,16 72,64 52,56"
+              d="M52,22 C72,34 72,50 52,62"
               fill="none"
               stroke="url(#g)"
               strokeWidth="4"

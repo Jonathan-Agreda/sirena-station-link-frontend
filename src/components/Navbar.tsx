@@ -43,32 +43,30 @@ export default function Navbar() {
               </linearGradient>
             </defs>
             <g transform="translate(8,8)">
+              {/* Caja del altavoz */}
               <rect
                 x="0"
-                y="20"
-                width="24"
-                height="20"
-                rx="4"
-                fill="var(--brand-primary)"
-              />
-              <rect
-                x="6"
-                y="16"
+                y="22"
                 width="12"
-                height="8"
+                height="16"
                 rx="2"
                 fill="var(--brand-primary)"
               />
-              <circle cx="12" cy="30" r="3" fill="var(--brand-primary-fg)" />
+              {/* Trompeta */}
+              <polygon
+                points="12,22 26,14 26,46 12,38"
+                fill="var(--brand-primary)"
+              />
+              {/* Ondas */}
               <path
-                d="M26,24 C34,20 34,40 26,36"
+                d="M32,20 C42,26 42,36 32,42"
                 fill="none"
                 stroke="url(#g)"
                 strokeWidth="3"
                 strokeLinecap="round"
               />
               <path
-                d="M30,22 C42,16 42,44 30,38"
+                d="M38,16 C52,26 52,36 38,46"
                 fill="none"
                 stroke="url(#g)"
                 strokeWidth="3"
