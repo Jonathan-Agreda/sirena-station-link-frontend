@@ -21,7 +21,6 @@ export default function Navbar() {
   const isDark = mounted && resolvedTheme === "dark";
   const toggle = () => setTheme(isDark ? "light" : "dark");
 
-  const isResidente = user?.role === "RESIDENTE";
   const isStaff = ["SUPERADMIN", "ADMIN", "GUARDIA"].includes(user?.role ?? "");
 
   return (

@@ -52,7 +52,8 @@ export default function LoginPage() {
       const data: PendingToast = JSON.parse(raw);
 
       if (Date.now() - data.t < 15_000) {
-        const opts = { duration: 6000, important: true } as const;
+        // CAMBIO 1: Se eliminó `important: true` de aquí
+        const opts = { duration: 6000 } as const;
         if (data.type === "error") toast.error(data.msg, opts);
         else if (data.type === "success") toast.success(data.msg, opts);
         else toast.message(data.msg, opts);
@@ -122,7 +123,8 @@ export default function LoginPage() {
       else if (status === 404) msg = "Usuario no encontrado";
       else if (ax.response?.data?.message) msg = ax.response.data.message;
 
-      toast.error(msg, { duration: 6000, important: true });
+      // CAMBIO 2: Se eliminó `important: true` de aquí
+      toast.error(msg, { duration: 6000 });
       try {
         const pending: PendingToast = { t: Date.now(), type: "error", msg };
         localStorage.setItem("login:toast", JSON.stringify(pending));
@@ -165,7 +167,8 @@ export default function LoginPage() {
       const msg =
         axiosErr.response?.data?.message ||
         "Credenciales inválidas o error en login";
-      toast.error(msg, { duration: 6000, important: true });
+      // CAMBIO 3: Se eliminó `important: true` de aquí
+      toast.error(msg, { duration: 6000 });
       console.error("Error login:", axiosErr);
     }
   }
