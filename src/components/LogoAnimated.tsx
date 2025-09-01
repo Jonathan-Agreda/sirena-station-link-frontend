@@ -17,12 +17,12 @@ export function LogoAnimated() {
         {/* Halo animado detrás */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 size-[min(60vw,20rem)] rounded-full bg-[radial-gradient(circle,var(--brand-primary)_0%,transparent_70%)] opacity-25 animate-background-pulse pointer-events-none" />
 
-        {/* Logo */}
+        {/* Logo (Ahora importa el SVG limpio) */}
         <div className="relative mx-auto w-[min(80vw,420px)] h-auto text-[--fg-light] dark:text-[--fg-dark] pointer-events-none">
           <Logo className="w-full h-auto" />
         </div>
 
-        {/* Estilos para las animaciones sincronizadas */}
+        {/* Los estilos aquí funcionan porque las clases .wave1 y .wave2 existen en el SVG importado */}
         <style jsx global>{`
           .logo-animated .wave1,
           .logo-animated .wave2 {
@@ -50,10 +50,10 @@ export function LogoAnimated() {
 
           /* Animación de PROPAGACIÓN para las ondas */
           .logo-animated .wave1 {
-            animation: wavePropagate 2.5s ease-out infinite; /* Usamos ease-out para que el inicio sea rápido */
+            animation: wavePropagate 2.5s ease-out infinite;
           }
           .logo-animated .wave2 {
-            animation: wavePropagate 2.5s ease-out 1.25s infinite; /* Desfasada por la mitad del tiempo */
+            animation: wavePropagate 2.5s ease-out 1.25s infinite;
           }
 
           @keyframes wavePropagate {
@@ -68,7 +68,6 @@ export function LogoAnimated() {
             }
             100% {
               opacity: 0;
-              /* La onda se ha movido 12px a la derecha y es un 15% más grande */
               transform: translateX(12px) scale(1.15);
               stroke-width: 2;
             }
