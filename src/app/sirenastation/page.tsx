@@ -73,12 +73,15 @@ export default function SirenaStationPage() {
           </div>
         ) : user ? (
           <>
-            {/* Urbanización + alícuota */}
+            {/* Urbanización */}
             <div className="rounded-xl border p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-[color-mix(in_oklab,transparent,var(--brand-primary)_6%)] dark:bg-[color-mix(in_oklab,transparent,var(--brand-primary)_10%)]">
               <p className="text-sm sm:text-base">
                 Urbanización:{" "}
                 <strong>{user.urbanizacion?.name || "Sin asignar"}</strong>
               </p>
+
+              {/* CAMBIO: La sección de alícuota se ha comentado para ocultarla */}
+              {/*
               <span
                 className={[
                   "px-4 py-1.5 rounded-full text-xs font-semibold shadow-sm border self-start sm:self-center",
@@ -91,6 +94,7 @@ export default function SirenaStationPage() {
                   ? "Alícuota pendiente"
                   : "Alícuota al día"}
               </span>
+              */}
             </div>
 
             {/* Main grid */}
