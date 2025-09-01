@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+// CAMBIO: Se importa `useMemo` para optimizar la inicialización de `rows`
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import {
   fetchActivationLogs,
@@ -16,8 +17,8 @@ const toMs = (v: string | undefined, d: number) => {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? n : d;
 };
-const REFETCH_MS = toMs(process.env.NEXT_PUBLIC_LOGS_REFETCH_MS, 3000); // polling
-const HIGHLIGHT_MS = toMs(process.env.NEXT_PUBLIC_LOGS_HIGHLIGHT_MS, 20000); // highlight (20s)
+const REFETCH_MS = toMs(process.env.NEXT_PUBLIC_LOGS_REFETCH_MS, 3000);
+const HIGHLIGHT_MS = toMs(process.env.NEXT_PUBLIC_LOGS_HIGHLIGHT_MS, 20000);
 
 // ───────────────────────────────────────────────────────────────────────────────
 
@@ -50,7 +51,7 @@ export default function ActivationLogsTable() {
   });
   const [showFilters, setShowFilters] = useState(false);
 
-  const { data, isLoading, isFetching } = useQuery<ActivationLogsResponse>({
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: ["activationLogs", filters],
     queryFn: () => fetchActivationLogs(filters),
     placeholderData: keepPreviousData,
@@ -58,7 +59,8 @@ export default function ActivationLogsTable() {
     refetchOnWindowFocus: true,
   });
 
-  const rows = data?.data ?? [];
+  // CAMBIO: Se envuelve la inicialización de `rows` en `useMemo`
+  const rows = useMemo(() => data?.data ?? [], [data]);
   const total = data?.total ?? 0;
   const page = data?.page ?? filters.page!;
   const perPage = data?.perPage ?? filters.perPage!;
@@ -91,16 +93,14 @@ export default function ActivationLogsTable() {
       includeRejected: false,
     });
 
-  // ========= Resaltar TODOS los registros nuevos =========
-  const seenIdsRef = useRef<Set<string>>(new Set()); // IDs que ya vimos
-  const [highlighted, setHighlighted] = useState<Set<string>>(new Set()); // IDs activos con highlight
-  const initializedRef = useRef(false); // evita highlight al primer render por filtros
+  const seenIdsRef = useRef<Set<string>>(new Set());
+  const [highlighted, setHighlighted] = useState<Set<string>>(new Set());
+  const initializedRef = useRef(false);
   const filtersKey = `${filters.q}|${filters.from ?? ""}|${filters.to ?? ""}|${
     filters.action ?? ""
   }|${filters.includeRejected ? 1 : 0}|${filters.perPage}`;
   const lastFiltersKeyRef = useRef<string>(filtersKey);
 
-  // si cambian filtros (no solo paginación), reiniciar detector
   useEffect(() => {
     if (lastFiltersKeyRef.current !== filtersKey) {
       seenIdsRef.current.clear();
@@ -112,14 +112,12 @@ export default function ActivationLogsTable() {
   useEffect(() => {
     if (page !== 1 || rows.length === 0) return;
 
-    // primera carga con estos filtros: marcar como vistos sin resaltar
     if (!initializedRef.current) {
       seenIdsRef.current = new Set(rows.map((r) => r.id));
       initializedRef.current = true;
       return;
     }
 
-    // detectar IDs nuevos
     const seen = seenIdsRef.current;
     const newIds: string[] = [];
     for (const r of rows) {
@@ -130,14 +128,12 @@ export default function ActivationLogsTable() {
     }
 
     if (newIds.length > 0) {
-      // encender highlight para todos los nuevos
       setHighlighted((prev) => {
         const next = new Set(prev);
         newIds.forEach((id) => next.add(id));
         return next;
       });
 
-      // programar apagado individual a los HIGHLIGHT_MS
       const timers: number[] = [];
       newIds.forEach((id) => {
         const timer = window.setTimeout(() => {
@@ -150,13 +146,10 @@ export default function ActivationLogsTable() {
         timers.push(timer);
       });
 
-      // limpieza si el efecto se re-ejecuta antes
       return () => timers.forEach((t) => clearTimeout(t));
     }
   }, [rows, page]);
-  // =======================================================
 
-  // Exportar Excel
   const exportExcel = async () => {
     try {
       const allData = await fetchActivationLogs({
@@ -184,7 +177,7 @@ export default function ActivationLogsTable() {
           r.deviceId,
           r.user.username,
           r.user.fullName,
-          `${r.user.etapa ?? "-"} / {r.user.manzana ?? "-"} / ${
+          `${r.user.etapa ?? "-"} / ${r.user.manzana ?? "-"} / ${
             r.user.villa ?? "-"
           }`,
           r.action,
@@ -194,12 +187,7 @@ export default function ActivationLogsTable() {
         ]);
       });
       const buf = await workbook.xlsx.writeBuffer();
-      saveAs(
-        new Blob([buf], {
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        }),
-        `activation_logs_${Date.now()}.xlsx`
-      );
+      saveAs(new Blob([buf]), `activation_logs_${Date.now()}.xlsx`);
     } catch (err) {
       console.error("❌ Error exportando Excel", err);
     }
@@ -207,25 +195,20 @@ export default function ActivationLogsTable() {
 
   return (
     <>
-      {/* Pasamos la duración como CSS var para sincronizar JS y CSS */}
       <div
         className="w-full space-y-4"
-        style={{ ["--highlight-ms" as any]: `${HIGHLIGHT_MS}ms` }}
+        // CAMBIO: Se usa el tipo `React.CSSProperties` para evitar el `any`
+        style={{ "--highlight-ms": `${HIGHLIGHT_MS}ms` } as React.CSSProperties}
       >
-        {/* Toggle móvil */}
         <div className="sm:hidden">
           <button
             onClick={() => setShowFilters((v) => !v)}
-            className={`w-full rounded-xl border px-3 py-2 text-sm font-medium 
-               bg-neutral-100 text-neutral-900 hover:bg-neutral-200
-               dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800
-               transition cursor-pointer`}
+            className={`w-full rounded-xl border px-3 py-2 text-sm font-medium bg-neutral-100 text-neutral-900 hover:bg-neutral-200 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer`}
           >
             {showFilters ? "Ocultar filtros ▲" : "Mostrar filtros ▼"}
           </button>
         </div>
 
-        {/* Filtros */}
         <div
           className={`grid gap-3 sm:grid-cols-8 items-center transition-all ${
             showFilters ? "grid" : "hidden sm:grid"
@@ -283,7 +266,6 @@ export default function ActivationLogsTable() {
           </button>
         </div>
 
-        {/* Tabla */}
         <div className="overflow-x-auto rounded-2xl border shadow-sm">
           <table className="min-w-max w-full text-sm">
             <thead className="bg-neutral-950/5 dark:bg-neutral-50/5">
@@ -366,7 +348,6 @@ export default function ActivationLogsTable() {
           </table>
         </div>
 
-        {/* Paginación */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="text-sm text-neutral-500">
             Página {page} de {totalPages} • {total} registros
@@ -396,9 +377,7 @@ export default function ActivationLogsTable() {
         </div>
       </div>
 
-      {/* Efecto de destaque sincronizado con HIGHLIGHT_MS */}
       <style jsx global>{`
-        /* Glow de borde controlado por --highlight-ms */
         @keyframes row-glow {
           0% {
             outline-color: color-mix(
@@ -427,8 +406,6 @@ export default function ActivationLogsTable() {
             filter: drop-shadow(0 0 0 transparent);
           }
         }
-
-        /* Zoom corto (3 latidos ~1.2s c/u) para captar la atención */
         @keyframes row-zoom {
           0% {
             transform: scale(1);
@@ -440,7 +417,6 @@ export default function ActivationLogsTable() {
             transform: scale(1);
           }
         }
-
         .highlight-new-row {
           outline: 2px solid transparent;
           outline-offset: -2px;
@@ -449,8 +425,6 @@ export default function ActivationLogsTable() {
           animation: row-glow var(--highlight-ms) ease-out forwards,
             row-zoom 1.2s ease-out 0s 3 alternate none;
         }
-
-        /* Fallback para engines donde <tr> no soporta filter/transform bien */
         @supports not (filter: drop-shadow(0 0 1px black)) {
           .highlight-new-row {
             animation: none;
@@ -462,45 +436,40 @@ export default function ActivationLogsTable() {
             animation: cell-glow var(--highlight-ms) ease-out forwards,
               cell-zoom 1.2s ease-out 0s 3 alternate none;
           }
-
-          @keyframes cell-glow {
-            0% {
-              box-shadow: inset 0 0 0 2px
-                  color-mix(in oklab, var(--brand-primary) 55%, transparent),
-                0 0 16px 2px
-                  color-mix(in oklab, var(--brand-primary) 45%, transparent);
-            }
-            60% {
-              box-shadow: inset 0 0 0 2px
-                  color-mix(in oklab, var(--brand-primary) 28%, transparent),
-                0 0 8px 1px
-                  color-mix(in oklab, var(--brand-primary) 25%, transparent);
-            }
-            100% {
-              box-shadow: inset 0 0 0 0 transparent, 0 0 0 0 transparent;
-            }
+        }
+        @keyframes cell-glow {
+          0% {
+            box-shadow: inset 0 0 0 2px
+                color-mix(in oklab, var(--brand-primary) 55%, transparent),
+              0 0 16px 2px
+                color-mix(in oklab, var(--brand-primary) 45%, transparent);
           }
-
-          @keyframes cell-zoom {
-            0% {
-              transform: scale(1);
-            }
-            40% {
-              transform: scale(1.035);
-            }
-            100% {
-              transform: scale(1);
-            }
+          60% {
+            box-shadow: inset 0 0 0 2px
+                color-mix(in oklab, var(--brand-primary) 28%, transparent),
+              0 0 8px 1px
+                color-mix(in oklab, var(--brand-primary) 25%, transparent);
+          }
+          100% {
+            box-shadow: inset 0 0 0 0 transparent, 0 0 0 0 transparent;
           }
         }
-
-        @media (prefers-reduced-motion: reduce) {
-          .highlight-new-row {
-            animation: none;
-            filter: none;
+        @keyframes cell-zoom {
+          0% {
+            transform: scale(1);
           }
+          40% {
+            transform: scale(1.035);
+          }
+          100% {
+            transform: scale(1);
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .highlight-new-row,
           .highlight-new-row > td {
             animation: none;
+            filter: none;
             box-shadow: none;
             transform: none;
           }
