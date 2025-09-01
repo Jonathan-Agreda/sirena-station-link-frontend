@@ -1,14 +1,16 @@
 "use client";
 
-import { MeResponse, ResidentMeResponse } from "@/services/auth";
+// CAMBIO 1: Se elimina la importación del tipo `ResidentMeResponse` que no existe.
+import { MeResponse } from "@/services/auth";
 
 type Props = {
   user: MeResponse;
 };
 
-// 👇 Type Guard
-function isResident(user: MeResponse): user is ResidentMeResponse {
-  return (user as ResidentMeResponse).role === "RESIDENTE";
+// CAMBIO 2: La función ahora devuelve un simple `boolean` en lugar de intentar
+// convertir el tipo a uno que no existe. La lógica interna no cambia.
+function isResident(user: MeResponse): boolean {
+  return user.role === "RESIDENTE";
 }
 
 export default function ProfileCard({ user }: Props) {

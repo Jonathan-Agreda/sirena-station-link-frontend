@@ -1,13 +1,14 @@
-// components/FirstPasswordDialog.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+// CAMBIO: Se importa `useCallback` desde React
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { completeFirstLoginWeb, homeFor } from "@/services/auth";
 import { useRouter } from "next/navigation";
 import type { MeResponse } from "@/services/auth";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Eye, EyeOff, CheckCircle2, X } from "lucide-react";
+import { isAxiosError } from "axios";
 
 type Props = {
   open: boolean;
@@ -41,13 +42,11 @@ export default function FirstPasswordDialog({
 
   useEffect(() => {
     if (open) {
-      // focus al primer campo vacío
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
 
   const strength = useMemo(() => {
-    // métrica básica (solo longitud mínima 6)
     if (!newPass) return 0;
     if (newPass.length < 6) return 1;
     if (newPass.length < 10) return 2;
@@ -61,7 +60,8 @@ export default function FirstPasswordDialog({
     newPass.length >= 6 &&
     newPass === confirm;
 
-  const submit = async () => {
+  // CAMBIO: Se envuelve la función `submit` en `useCallback`
+  const submit = useCallback(async () => {
     if (!userField) {
       toast.error("Ingresa tu usuario o email");
       return;
@@ -92,18 +92,29 @@ export default function FirstPasswordDialog({
       onClose();
       if (onSuccess) onSuccess(user);
       else router.replace(homeFor(user.role));
-    } catch (e: any) {
-      const msg =
-        e?.response?.data?.message ||
-        e?.message ||
-        "No se pudo completar el primer inicio de sesión";
+    } catch (e: unknown) {
+      let msg = "No se pudo completar el primer inicio de sesión";
+      if (isAxiosError(e)) {
+        msg = e.response?.data?.message || e.message;
+      } else if (e instanceof Error) {
+        msg = e.message;
+      }
       toast.error(msg);
     } finally {
       setLoading(false);
     }
-  };
+    // CAMBIO: Se añaden las dependencias de la función `submit`
+  }, [
+    userField,
+    currentPassword,
+    newPass,
+    confirm,
+    onClose,
+    onSuccess,
+    router,
+  ]);
 
-  // Cerrar con ESC
+  // Cerrar con ESC y enviar con Enter
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && open && !loading) onClose();
@@ -111,7 +122,7 @@ export default function FirstPasswordDialog({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, valid, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, valid, loading, onClose, submit]);
 
   return (
     <AnimatePresence>

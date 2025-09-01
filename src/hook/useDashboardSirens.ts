@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+// CAMBIO 1: Se elimina `useMemo` de la lista de importaciones porque no se usa.
+import { useEffect, useRef, useState, useCallback } from "react";
 import api from "@/lib/api";
 import { getSocket } from "@/lib/socket";
 
@@ -32,6 +33,17 @@ type LastState = {
   lastHeartbeatAt?: string;
 };
 
+// CAMBIO 2: Se crea un tipo para la respuesta de la API de `/sirens`
+// para evitar el uso de `any`.
+type ApiSiren = {
+  deviceId: string;
+  ip: string | null;
+  lat: number;
+  lng: number;
+  urbanizationId: string;
+  groupId: string | null;
+};
+
 const HEARTBEAT_MS = 30_000;
 const ACK_TIMEOUT_MS = 5_000;
 
@@ -49,20 +61,23 @@ export function useDashboardSirens() {
       try {
         // Sirenas visibles según rol
         const sirensRes = await api.get("/sirens");
-        const base: DashboardSiren[] = (sirensRes.data as any[]).map((s) => ({
-          deviceId: s.deviceId,
-          ip: s.ip ?? null,
-          online: false,
-          relay: "OFF",
-          siren: "OFF",
-          updatedAt: undefined,
-          lat: s.lat,
-          lng: s.lng,
-          urbanizationId: s.urbanizationId,
-          groupId: s.groupId ?? null,
-          countdown: undefined,
-          pending: false,
-        }));
+        // CAMBIO 2 (continuación): Se usa el nuevo tipo `ApiSiren[]` en lugar de `any[]`
+        const base: DashboardSiren[] = (sirensRes.data as ApiSiren[]).map(
+          (s) => ({
+            deviceId: s.deviceId,
+            ip: s.ip ?? null,
+            online: false,
+            relay: "OFF",
+            siren: "OFF",
+            updatedAt: undefined,
+            lat: s.lat,
+            lng: s.lng,
+            urbanizationId: s.urbanizationId,
+            groupId: s.groupId ?? null,
+            countdown: undefined,
+            pending: false,
+          })
+        );
 
         // Estados recientes (si hay)
         let merged = base;
@@ -160,28 +175,24 @@ export function useDashboardSirens() {
     }) => {
       const id = ack.deviceId;
 
-      // cancelar timeout de ACK si estaba
       if (ackTimers.current[id]) {
         clearTimeout(ackTimers.current[id]);
         delete ackTimers.current[id];
       }
 
       if (ack.result !== "OK") {
-        // liberar botón
         setItems((prev) =>
           prev.map((s) => (s.deviceId === id ? { ...s, pending: false } : s))
         );
         return;
       }
 
-      // reflejo inmediato; el STATE confirmará igualmente
       setItems((prev) =>
         prev.map((s) =>
           s.deviceId === id ? { ...s, siren: ack.action, pending: false } : s
         )
       );
 
-      // manejar countdown para auto-off
       if (ack.action === "ON") {
         const ttlSec = process.env.NEXT_PUBLIC_SIRENA_AUTO_OFF
           ? parseInt(process.env.NEXT_PUBLIC_SIRENA_AUTO_OFF) / 1000
@@ -239,7 +250,6 @@ export function useDashboardSirens() {
     };
   }, []);
 
-  // 3) Enviar comando: pending + timeout de ACK (no mutamos estado directo)
   const sendCommand = useCallback(async (deviceId: string, action: OnOff) => {
     setItems((prev) =>
       prev.map((s) => (s.deviceId === deviceId ? { ...s, pending: true } : s))
@@ -261,7 +271,7 @@ export function useDashboardSirens() {
     try {
       await api.post(`/devices/${deviceId}/cmd`, {
         action,
-        ttlMs: Number(process.env.NEXT_PUBLIC_SIRENA_AUTO_OFF) || 300_000, // 5 min
+        ttlMs: Number(process.env.NEXT_PUBLIC_SIRENA_AUTO_OFF) || 300_000,
         cause: "manual",
       });
     } catch (err) {

@@ -33,13 +33,14 @@ export type LogsFilters = {
   from?: string;
   to?: string;
   action?: "ON" | "OFF" | "AUTO_OFF" | "";
-  includeRejected?: boolean; // si true: trae también REJECTED/FAILED/EXECUTED
+  includeRejected?: boolean;
   page?: number;
   perPage?: number;
 };
 
 export async function fetchActivationLogs(filters: LogsFilters) {
-  const params: Record<string, any> = {
+  // CAMBIO: Se reemplaza `any` por un tipo más específico (`string | number`).
+  const params: Record<string, string | number> = {
     page: filters.page ?? 1,
     perPage: filters.perPage ?? 25,
   };

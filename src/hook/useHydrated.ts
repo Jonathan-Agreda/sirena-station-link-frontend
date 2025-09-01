@@ -2,11 +2,22 @@
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/auth";
 
+// CAMBIO 1: Se crea un tipo que describe la API interna del middleware `persist` de Zustand.
+type StoreWithPersist = {
+  persist: {
+    hasHydrated: () => boolean;
+    onFinishHydration: (fn: () => void) => () => void; // `unsub` function
+  };
+};
+
 export function useHydrated() {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const api: any = (useAuthStore as any).persist;
+    // CAMBIO 2: Se usa el nuevo tipo para el "casting" en lugar de `any`.
+    // El `unknown` es un paso intermedio más seguro que `any`.
+    const api = (useAuthStore as unknown as StoreWithPersist).persist;
+
     if (api?.hasHydrated?.()) {
       setHydrated(true);
       return;

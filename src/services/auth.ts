@@ -53,6 +53,26 @@ export type MeResponse = {
   sirens: Siren[];
 };
 
+// CAMBIO 1: Se crea un tipo para el objeto "raw" que viene del backend.
+// Esto nos permite reemplazar `any` de forma segura.
+type RawUser = {
+  id: string;
+  username: string;
+  email?: string;
+  role?: string;
+  roles?: string[];
+  firstName?: string | null;
+  firstname?: string | null;
+  lastName?: string | null;
+  lastname?: string | null;
+  etapa?: string | null;
+  manzana?: string | null;
+  villa?: string | null;
+  alicuota?: boolean;
+  urbanizacion?: MeResponse["urbanizacion"];
+  sirens?: Siren[];
+};
+
 /* ------------------ Helpers ------------------ */
 
 // A qué página ir según rol (usar después del login)
@@ -63,7 +83,8 @@ export function homeFor(role: Role): "/dashboard" | "/sirenastation" {
 }
 
 // Normaliza cualquier shape de user que venga del backend (roles[] o role)
-function normalizeUser(raw: any): MeResponse {
+// CAMBIO 2: Se usa el nuevo tipo `RawUser` en lugar de `any`.
+function normalizeUser(raw: RawUser): MeResponse {
   const roleFromArray =
     Array.isArray(raw?.roles) &&
     (raw.roles as string[]).find((r) =>
@@ -82,7 +103,6 @@ function normalizeUser(raw: any): MeResponse {
     etapa: raw.etapa ?? null,
     manzana: raw.manzana ?? null,
     villa: raw.villa ?? null,
-    // 🔹 Si backend manda false, se respeta
     alicuota: raw.alicuota !== undefined ? raw.alicuota : true,
     urbanizacion: raw.urbanizacion ?? null,
     sirens: Array.isArray(raw.sirens) ? raw.sirens : [],
@@ -91,26 +111,20 @@ function normalizeUser(raw: any): MeResponse {
 
 /* ------------------ Auth API ------------------ */
 
-// LOGIN: hace login, luego prefetch de /residents/me y guarda en el store
 export async function loginWeb(usernameOrEmail: string, password: string) {
-  // 1) Login (el backend setea cookie de refresh; aquí nos quedamos con accessToken)
   const res = await api.post("/auth/login/web", { usernameOrEmail, password });
   const { accessToken } = res.data;
 
-  // 2) Perfil completo (usar token recién emitido)
   const meRes = await api.get<MeResponse>("/residents/me", {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
-  // 3) Normalizar y guardar en store
   const user = normalizeUser(meRes.data);
   useAuthStore.getState().setAuth(user, accessToken);
 
-  // 4) Devolver en un shape consistente
   return { accessToken, user };
 }
 
-// LOGOUT: cierra sesión en backend y limpia store
 export async function logoutWeb() {
   try {
     await api.post("/auth/logout/web");
@@ -119,7 +133,6 @@ export async function logoutWeb() {
   }
 }
 
-// ME: obtiene el perfil completo (útil en bootstrap o refrescos)
 export async function fetchMe(): Promise<MeResponse> {
   const { accessToken } = useAuthStore.getState();
   if (!accessToken) throw new Error("No token disponible");
@@ -132,7 +145,6 @@ export async function fetchMe(): Promise<MeResponse> {
 
 /* ------------------ NUEVO: flujo primer login ------------------ */
 
-// Prelogin: detecta si Keycloak exige cambio de contraseña
 export async function prelogin(
   usernameOrEmail: string,
   password: string
@@ -141,12 +153,9 @@ export async function prelogin(
     usernameOrEmail,
     password,
   });
-  // { ok: true }  ||  { ok:false, code:'PASSWORD_CHANGE_REQUIRED' }
   return data;
 }
 
-// Completar primer login: cambia la clave en backend (sin romper cookies),
-// hace /residents/me y guarda en el store, igual que loginWeb
 export async function completeFirstLoginWeb(
   usernameOrEmail: string,
   currentPassword: string,

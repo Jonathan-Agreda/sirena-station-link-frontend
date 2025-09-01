@@ -13,17 +13,17 @@ const refreshApi = axios.create({
   withCredentials: true,
 });
 
-// 👉 Adjunta Authorization en cada request si hay token (SIN CAMBIOS)
+// CAMBIO: Se simplifica el interceptor para asignar el header de forma segura
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
   if (token) {
-    config.headers = config.headers ?? {};
-    (config.headers as any).Authorization = `Bearer ${token}`;
+    // Esta es la forma correcta y type-safe de añadir el header
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-// 👉 Interceptor de respuestas (CON CAMBIOS)
+// 👉 Interceptor de respuestas (SIN CAMBIOS, ya estaba correcto)
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
@@ -33,21 +33,15 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // 👇 MODIFICACIÓN CLAVE:
-    // Añadimos /auth/prelogin a la lista de endpoints cuyos errores no deben ser manejados globalmente.
     const isAuthEndpoint =
       original?.url?.includes("/auth/login/web") ||
       original?.url?.includes("/auth/refresh/web") ||
-      original?.url?.includes("/auth/prelogin"); // <-- LÍNEA AÑADIDA
+      original?.url?.includes("/auth/prelogin");
 
     if (isAuthEndpoint) {
-      // Si el error viene de una de estas rutas, simplemente lo devolvemos
-      // para que sea manejado por el componente que hizo la llamada (ej. LoginPage).
       return Promise.reject(error);
     }
 
-    // El resto de la lógica para manejar sesiones expiradas se mantiene igual.
-    // Esto solo se ejecutará para el resto de las rutas de la app.
     if (error.response.status === 401 && !original._retry) {
       original._retry = true;
       try {

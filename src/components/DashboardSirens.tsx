@@ -2,7 +2,8 @@
 
 import { useDashboardSirens } from "@/hook/useDashboardSirens";
 import { Bell, BellOff, Volume2, VolumeX, Vibrate } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+// CAMBIO: Se importa useCallback para solucionar las advertencias de useEffect
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 
 function formatTime(sec?: number) {
   if (!sec || sec <= 0) return "";
@@ -13,6 +14,11 @@ function formatTime(sec?: number) {
     .toString()
     .padStart(2, "0");
   return `${m}:${s}`;
+}
+
+// CAMBIO: Se define un tipo para window que incluye la propiedad vendor-prefixed
+interface WindowWithAudioContext extends Window {
+  webkitAudioContext?: typeof AudioContext;
 }
 
 export default function DashboardSirens() {
@@ -57,7 +63,6 @@ export default function DashboardSirens() {
     [online]
   );
 
-  // Notifs ON por defecto si ya hay permiso; sonido ON por defecto
   const [alertsEnabled, setAlertsEnabled] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return "Notification" in window && Notification.permission === "granted";
@@ -65,19 +70,24 @@ export default function DashboardSirens() {
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [vibrateEnabled, setVibrateEnabled] = useState<boolean>(false);
   const [muted, setMuted] = useState<boolean>(false);
-  const intervalMs = 20000; // cada 20 s
+  const intervalMs = 20000;
 
-  // Audio (WebAudio)
   const audioCtxRef = useRef<AudioContext | null>(null);
-  function ensureAudioCtx() {
+
+  // CAMBIO: Se envuelve `ensureAudioCtx` en useCallback para estabilizarla
+  const ensureAudioCtx = useCallback(() => {
     if (!audioCtxRef.current) {
-      const Ctx = (window.AudioContext ||
-        (window as any).webkitAudioContext) as typeof AudioContext;
+      // CAMBIO: Se usa la nueva interfaz en lugar de `any` para evitar la advertencia
+      const Ctx =
+        window.AudioContext ||
+        (window as WindowWithAudioContext).webkitAudioContext;
       if (Ctx) audioCtxRef.current = new Ctx();
     }
     return audioCtxRef.current;
-  }
-  function beep() {
+  }, []);
+
+  // CAMBIO: Se envuelve `beep` en useCallback y se le añade su dependencia (`ensureAudioCtx`)
+  const beep = useCallback(() => {
     const ctx = ensureAudioCtx();
     if (!ctx) return;
     const osc = ctx.createOscillator();
@@ -91,9 +101,8 @@ export default function DashboardSirens() {
     gain.gain.exponentialRampToValueAtTime(0.00001, now + 0.25);
     osc.start(now);
     osc.stop(now + 0.26);
-  }
+  }, [ensureAudioCtx]);
 
-  // Reanudar audio en el primer gesto del usuario (para que el beep suene)
   useEffect(() => {
     if (!soundEnabled) return;
     const resume = () => {
@@ -105,9 +114,8 @@ export default function DashboardSirens() {
       window.removeEventListener("click", resume);
       window.removeEventListener("touchstart", resume);
     };
-  }, [soundEnabled]);
+  }, [soundEnabled, ensureAudioCtx]);
 
-  // Pedimos permiso automáticamente al montar (si está en "default")
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!("Notification" in window)) return;
@@ -124,7 +132,6 @@ export default function DashboardSirens() {
     if (p === "granted") setAlertsEnabled(true);
   }
 
-  // 🔔 Notificación AGREGADA (reemplaza la anterior)
   function notifyAggregate(ids: string[]) {
     if (!(typeof window !== "undefined" && "Notification" in window)) return;
     if (Notification.permission !== "granted") return;
@@ -132,17 +139,15 @@ export default function DashboardSirens() {
 
     const title =
       ids.length === 1 ? "Sirena ACTIVA" : `Sirenas ACTIVAS (${ids.length})`;
-    // Para que sea legible, mostramos hasta 8 y luego un “+N más”
     const MAX = 8;
     const shown = ids.slice(0, MAX).join(", ");
     const rest = ids.length > MAX ? `, +${ids.length - MAX} más` : "";
     const body = shown + rest;
 
-    // tag para reemplazar; renotify para volver a “pingear”
     const n = new Notification(title, {
       body,
       tag: "sirena-aggregate",
-      renotify: true,
+      // CAMBIO: Se elimina la propiedad no estándar `renotify` para solucionar el error de tipo.
     });
     setTimeout(() => n.close(), 6000);
   }
@@ -154,7 +159,6 @@ export default function DashboardSirens() {
     } catch {}
   }
 
-  // Detectar nuevas activaciones (OFF->ON) y notificar AGREGADO
   const prevActiveIdsRef = useRef<string[]>([]);
   useEffect(() => {
     const current = activeOnline.map((s) => s.deviceId);
@@ -162,7 +166,6 @@ export default function DashboardSirens() {
     const newlyOn = current.filter((id) => !previous.includes(id));
 
     if (newlyOn.length > 0 && alertsEnabled && !muted) {
-      // Mostramos TODAS las activas en una única notificación
       notifyAggregate(current);
       if (soundEnabled) {
         ensureAudioCtx()?.resume?.();
@@ -172,9 +175,17 @@ export default function DashboardSirens() {
     }
 
     prevActiveIdsRef.current = current;
-  }, [activeOnline, alertsEnabled, muted, soundEnabled, vibrateEnabled]);
+    // CAMBIO: Se añaden `beep` y `ensureAudioCtx` a las dependencias.
+  }, [
+    activeOnline,
+    alertsEnabled,
+    muted,
+    soundEnabled,
+    vibrateEnabled,
+    beep,
+    ensureAudioCtx,
+  ]);
 
-  // Recordatorio cada 20s con la lista AGREGADA de TODAS las activas
   useEffect(() => {
     if (!alertsEnabled || muted || activeOnline.length === 0) return;
     const tick = () => {
@@ -188,6 +199,7 @@ export default function DashboardSirens() {
     };
     const t = setInterval(tick, intervalMs);
     return () => clearInterval(t);
+    // CAMBIO: Se añaden `beep` y `ensureAudioCtx` a las dependencias.
   }, [
     alertsEnabled,
     muted,
@@ -195,6 +207,8 @@ export default function DashboardSirens() {
     vibrateEnabled,
     activeOnline,
     intervalMs,
+    beep,
+    ensureAudioCtx,
   ]);
 
   const hasNotifs = typeof window !== "undefined" && "Notification" in window;
@@ -271,7 +285,7 @@ export default function DashboardSirens() {
                 ensureAudioCtx()?.resume?.();
                 setSoundEnabled((v) => !v);
               }}
-              className={`cursor-pointer flex items/items-center gap-1 rounded-lg px-2 py-1 transition ${
+              className={`cursor-pointer flex items-center gap-1 rounded-lg px-2 py-1 transition ${
                 soundEnabled
                   ? "bg-indigo-500/15 text-indigo-600"
                   : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
