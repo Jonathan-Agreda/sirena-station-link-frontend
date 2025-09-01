@@ -11,6 +11,16 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
+// ─── Config por .env con fallback ──────────────────────────────────────────────
+const toMs = (v: string | undefined, d: number) => {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : d;
+};
+const REFETCH_MS = toMs(process.env.NEXT_PUBLIC_LOGS_REFETCH_MS, 3000); // polling
+const HIGHLIGHT_MS = toMs(process.env.NEXT_PUBLIC_LOGS_HIGHLIGHT_MS, 20000); // highlight (20s)
+
+// ───────────────────────────────────────────────────────────────────────────────
+
 function fmt(iso: string) {
   try {
     const d = new Date(iso);
@@ -44,7 +54,7 @@ export default function ActivationLogsTable() {
     queryKey: ["activationLogs", filters],
     queryFn: () => fetchActivationLogs(filters),
     placeholderData: keepPreviousData,
-    refetchInterval: 3000,
+    refetchInterval: REFETCH_MS,
     refetchOnWindowFocus: true,
   });
 
@@ -81,21 +91,16 @@ export default function ActivationLogsTable() {
       includeRejected: false,
     });
 
-  // ========= NUEVO: resaltar TODOS los registros nuevos =========
-  // IDs que ya vimos (por sesión de tabla/filtros)
-  const seenIdsRef = useRef<Set<string>>(new Set());
-  // IDs actualmente destacados (se apagan solos a los 10 s)
-  const [highlighted, setHighlighted] = useState<Set<string>>(new Set());
-  // Señal para evitar highlight en la primera carga post cambio de filtros
-  const initializedRef = useRef(false);
-  // Clave para detectar cambios reales de filtros (excepto page)
+  // ========= Resaltar TODOS los registros nuevos =========
+  const seenIdsRef = useRef<Set<string>>(new Set()); // IDs que ya vimos
+  const [highlighted, setHighlighted] = useState<Set<string>>(new Set()); // IDs activos con highlight
+  const initializedRef = useRef(false); // evita highlight al primer render por filtros
   const filtersKey = `${filters.q}|${filters.from ?? ""}|${filters.to ?? ""}|${
     filters.action ?? ""
   }|${filters.includeRejected ? 1 : 0}|${filters.perPage}`;
-
   const lastFiltersKeyRef = useRef<string>(filtersKey);
 
-  // Si cambian filtros (no solo page), reiniciamos detector
+  // si cambian filtros (no solo paginación), reiniciar detector
   useEffect(() => {
     if (lastFiltersKeyRef.current !== filtersKey) {
       seenIdsRef.current.clear();
@@ -107,14 +112,14 @@ export default function ActivationLogsTable() {
   useEffect(() => {
     if (page !== 1 || rows.length === 0) return;
 
-    // Primera carga con estos filtros: inicializamos "visto" y no destacamos
+    // primera carga con estos filtros: marcar como vistos sin resaltar
     if (!initializedRef.current) {
       seenIdsRef.current = new Set(rows.map((r) => r.id));
       initializedRef.current = true;
       return;
     }
 
-    // Detectar TODOS los IDs nuevos no vistos aún
+    // detectar IDs nuevos
     const seen = seenIdsRef.current;
     const newIds: string[] = [];
     for (const r of rows) {
@@ -125,28 +130,31 @@ export default function ActivationLogsTable() {
     }
 
     if (newIds.length > 0) {
-      // Encendemos highlight a todos
+      // encender highlight para todos los nuevos
       setHighlighted((prev) => {
         const next = new Set(prev);
         newIds.forEach((id) => next.add(id));
         return next;
       });
 
-      // Y programamos su apagado individual a los 10 s
+      // programar apagado individual a los HIGHLIGHT_MS
+      const timers: number[] = [];
       newIds.forEach((id) => {
-        const t = setTimeout(() => {
+        const timer = window.setTimeout(() => {
           setHighlighted((prev) => {
             const next = new Set(prev);
             next.delete(id);
             return next;
           });
-        }, 10_000);
-        // Limpieza por si este efecto se re-ejecuta antes
-        return () => clearTimeout(t);
+        }, HIGHLIGHT_MS);
+        timers.push(timer);
       });
+
+      // limpieza si el efecto se re-ejecuta antes
+      return () => timers.forEach((t) => clearTimeout(t));
     }
   }, [rows, page]);
-  // =============================================================
+  // =======================================================
 
   // Exportar Excel
   const exportExcel = async () => {
@@ -176,7 +184,7 @@ export default function ActivationLogsTable() {
           r.deviceId,
           r.user.username,
           r.user.fullName,
-          `${r.user.etapa ?? "-"} / ${r.user.manzana ?? "-"} / ${
+          `${r.user.etapa ?? "-"} / {r.user.manzana ?? "-"} / ${
             r.user.villa ?? "-"
           }`,
           r.action,
@@ -199,7 +207,11 @@ export default function ActivationLogsTable() {
 
   return (
     <>
-      <div className="w-full space-y-4">
+      {/* Pasamos la duración como CSS var para sincronizar JS y CSS */}
+      <div
+        className="w-full space-y-4"
+        style={{ ["--highlight-ms" as any]: `${HIGHLIGHT_MS}ms` }}
+      >
         {/* Toggle móvil */}
         <div className="sm:hidden">
           <button
@@ -384,38 +396,113 @@ export default function ActivationLogsTable() {
         </div>
       </div>
 
-      {/* Efecto de destaque 10s para nuevas filas */}
+      {/* Efecto de destaque sincronizado con HIGHLIGHT_MS */}
       <style jsx global>{`
-        @keyframes row-highlight {
+        /* Glow de borde controlado por --highlight-ms */
+        @keyframes row-glow {
           0% {
-            background: color-mix(
+            outline-color: color-mix(
               in oklab,
-              var(--brand-primary) 24%,
+              var(--brand-primary) 65%,
               transparent
+            );
+            filter: drop-shadow(
+              0 0 18px
+                color-mix(in oklab, var(--brand-primary) 55%, transparent)
             );
           }
           60% {
-            background: color-mix(
+            outline-color: color-mix(
               in oklab,
-              var(--brand-primary) 10%,
+              var(--brand-primary) 30%,
               transparent
+            );
+            filter: drop-shadow(
+              0 0 10px
+                color-mix(in oklab, var(--brand-primary) 30%, transparent)
             );
           }
           100% {
-            background: transparent;
+            outline-color: transparent;
+            filter: drop-shadow(0 0 0 transparent);
           }
         }
-        .highlight-new-row {
-          animation: row-highlight 10s ease-out forwards;
+
+        /* Zoom corto (3 latidos ~1.2s c/u) para captar la atención */
+        @keyframes row-zoom {
+          0% {
+            transform: scale(1);
+          }
+          40% {
+            transform: scale(1.035);
+          }
+          100% {
+            transform: scale(1);
+          }
         }
+
+        .highlight-new-row {
+          outline: 2px solid transparent;
+          outline-offset: -2px;
+          will-change: transform, filter;
+          transform-origin: center;
+          animation: row-glow var(--highlight-ms) ease-out forwards,
+            row-zoom 1.2s ease-out 0s 3 alternate none;
+        }
+
+        /* Fallback para engines donde <tr> no soporta filter/transform bien */
+        @supports not (filter: drop-shadow(0 0 1px black)) {
+          .highlight-new-row {
+            animation: none;
+          }
+          .highlight-new-row > td {
+            position: relative;
+            transform-origin: center;
+            will-change: transform, box-shadow;
+            animation: cell-glow var(--highlight-ms) ease-out forwards,
+              cell-zoom 1.2s ease-out 0s 3 alternate none;
+          }
+
+          @keyframes cell-glow {
+            0% {
+              box-shadow: inset 0 0 0 2px
+                  color-mix(in oklab, var(--brand-primary) 55%, transparent),
+                0 0 16px 2px
+                  color-mix(in oklab, var(--brand-primary) 45%, transparent);
+            }
+            60% {
+              box-shadow: inset 0 0 0 2px
+                  color-mix(in oklab, var(--brand-primary) 28%, transparent),
+                0 0 8px 1px
+                  color-mix(in oklab, var(--brand-primary) 25%, transparent);
+            }
+            100% {
+              box-shadow: inset 0 0 0 0 transparent, 0 0 0 0 transparent;
+            }
+          }
+
+          @keyframes cell-zoom {
+            0% {
+              transform: scale(1);
+            }
+            40% {
+              transform: scale(1.035);
+            }
+            100% {
+              transform: scale(1);
+            }
+          }
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .highlight-new-row {
             animation: none;
-            background: color-mix(
-              in oklab,
-              var(--brand-primary) 16%,
-              transparent
-            );
+            filter: none;
+          }
+          .highlight-new-row > td {
+            animation: none;
+            box-shadow: none;
+            transform: none;
           }
         }
       `}</style>

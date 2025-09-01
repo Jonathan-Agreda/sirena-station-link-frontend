@@ -48,6 +48,18 @@ export default function SirenaStationPage() {
     return `${m}:${s}`;
   }
 
+  // CAMBIO 1: Se crea la variable para la URL de la imagen.
+  // Proporciona una imagen por defecto si no hay nombre de urbanización.
+  let imageUrba = "/urbanitation/savali.jpeg"; // Imagen de respaldo
+  if (user?.urbanizacion?.name) {
+    // Transforma el nombre: minúsculas y sin espacios
+    const transformedName = user.urbanizacion.name
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "");
+    imageUrba = `/urbanitation/${transformedName}.jpeg`;
+  }
+
   return (
     <RoleGate
       allowed={["SUPERADMIN", "ADMIN", "GUARDIA", "RESIDENTE"] as Role[]}
@@ -81,139 +93,133 @@ export default function SirenaStationPage() {
               </p>
             </div>
 
-            {/* Main grid
-               - 2 columnas en md+
-               - 2 filas en md+ para que el bloque izquierdo pueda ocupar ambas (row-span-2)
-               - Orden: móvil -> Sirena (1), Imagen (2), Perfil (3)
-                        md+   -> Sirena (izq, abarca 2 filas), Perfil (der arriba), Imagen (der abajo)
-            */}
-            <div className="grid gap-6 md:grid-cols-[1.2fr_1fr] md:grid-rows-[auto_auto]">
-              {/* Control Sirena (primero en móvil, columna izquierda en md+) */}
-              <div
-                className={[
-                  "rounded-xl p-6 grid place-items-center text-center border gap-3",
-                  "order-1 md:order-1 md:row-span-2 md:col-start-1",
-                  user.alicuota === false ? "border-[--danger]" : "",
-                ].join(" ")}
-              >
-                {user.alicuota === false ? (
-                  <p className="text-sm">
-                    Tu alícuota está pendiente. La activación de la sirena está{" "}
-                    <strong>bloqueada temporalmente</strong>.
-                  </p>
-                ) : (
-                  <>
-                    {user.sirens && user.sirens.length > 1 && (
-                      <select
-                        value={selectedSirenId || ""}
-                        onChange={(e) => setSelectedSirenId(e.target.value)}
-                        className="mb-3 rounded-lg border px-3 py-2 text-sm bg-background w-full sm:w-auto"
+            {/* Main grid */}
+            <div className="grid gap-6 md:grid-cols-[1.2fr_1fr]">
+              {/* Perfil + Sirena */}
+              <div className="grid gap-6">
+                {/* Perfil */}
+                <div className="rounded-xl border p-4 grid gap-2">
+                  <p className="text-sm opacity-70">Tu perfil</p>
+                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                    <div className="grid grid-cols-[90px_1fr] gap-2">
+                      <dt className="opacity-60">Usuario</dt>
+                      <dd className="font-medium break-words">
+                        {user.firstName + " " + user.lastName || "—"}
+                      </dd>
+                    </div>
+                    <div className="grid grid-cols-[90px_1fr] gap-2">
+                      <dt className="opacity-60">Email</dt>
+                      <dd
+                        className="font-medium truncate"
+                        title={user.email || "—"}
                       >
-                        {user.sirens.map((s) => (
-                          <option key={s.deviceId} value={s.deviceId}>
-                            {s.deviceId}
-                          </option>
-                        ))}
-                      </select>
-                    )}
+                        {user.email || "—"}
+                      </dd>
+                    </div>
+                    <div className="grid grid-cols-[90px_1fr] gap-2">
+                      <dt className="opacity-60">Etapa</dt>
+                      <dd className="font-medium">{user.etapa || "—"}</dd>
+                    </div>
+                    <div className="grid grid-cols-[90px_1fr] gap-2">
+                      <dt className="opacity-60">Manzana</dt>
+                      <dd className="font-medium">{user.manzana || "—"}</dd>
+                    </div>
+                    <div className="grid grid-cols-[90px_1fr] gap-2">
+                      <dt className="opacity-60">Villa</dt>
+                      <dd className="font-medium">{user.villa || "—"}</dd>
+                    </div>
+                    <div className="grid grid-cols-[90px_1fr] gap-2">
+                      <dt className="opacity-60">Rol</dt>
+                      <dd className="font-medium">{user.role}</dd>
+                    </div>
+                  </dl>
+                </div>
 
-                    <p className="text-lg font-bold">
-                      {state?.deviceId ||
-                        selectedSirenId ||
-                        user.sirens?.[0]?.deviceId ||
-                        "—"}
+                {/* Control Sirena */}
+                <div
+                  className={[
+                    "rounded-xl p-6 grid place-items-center text-center border gap-3",
+                    user.alicuota === false ? "border-[--danger]" : "",
+                  ].join(" ")}
+                >
+                  {user.alicuota === false ? (
+                    <p className="text-sm">
+                      Tu alícuota está pendiente. La activación de la sirena
+                      está <strong>bloqueada temporalmente</strong>.
                     </p>
-
-                    <button
-                      onClick={handleToggle}
-                      disabled={!state || !state.online}
-                      className={`relative rounded-full grid place-items-center text-white font-bold transition
-                        ${
-                          !state || !state.online
+                  ) : (
+                    <>
+                      {user.sirens && user.sirens.length > 1 && (
+                        <select
+                          value={selectedSirenId || ""}
+                          onChange={(e) => setSelectedSirenId(e.target.value)}
+                          className="mb-3 rounded-lg border px-3 py-2 text-sm bg-background w-full sm:w-auto"
+                        >
+                          {user.sirens.map((s) => (
+                            <option key={s.deviceId} value={s.deviceId}>
+                              {s.deviceId}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      <p className="text-lg font-bold">
+                        {state?.deviceId ||
+                          selectedSirenId ||
+                          user.sirens?.[0]?.deviceId ||
+                          "—"}
+                      </p>
+                      <button
+                        onClick={handleToggle}
+                        disabled={!state || !state.online}
+                        className={`relative h-48 w-48 sm:h-64 sm:w-64 rounded-full grid place-items-center text-white font-bold transition ${
+                          !state
+                            ? "bg-gray-gradient cursor-not-allowed"
+                            : !state.online
                             ? "bg-gray-gradient cursor-not-allowed"
                             : state.siren === "ON"
                             ? "bg-red-gradient animate-pulse cursor-pointer"
                             : "bg-green-gradient hover:brightness-110 cursor-pointer"
-                        }
-                        h-48 w-48 sm:h-64 sm:w-64 md:h-72 md:w-72 lg:h-80 lg:w-80
-                      `}
-                    >
-                      <div className="flex flex-col items-center">
-                        <span className="text-xl sm:text-2xl font-bold">
+                        }`}
+                      >
+                        <div className="flex flex-col items-center">
+                          <span className="text-xl sm:text-2xl font-bold">
+                            {!state
+                              ? "Sin datos"
+                              : state.siren === "ON"
+                              ? "Apagar"
+                              : "Encender"}
+                          </span>
+                          {countdown > 0 && state?.online && (
+                            <span className="text-base sm:text-lg opacity-80 mt-1">
+                              {formatTime(countdown)}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                      <p className="text-sm opacity-80 mt-3">
+                        Estado:{" "}
+                        <strong>
                           {!state
                             ? "Sin datos"
-                            : state.siren === "ON"
-                            ? "Apagar"
-                            : "Encender"}
-                        </span>
-                        {countdown > 0 && state?.online && (
-                          <span className="text-base sm:text-lg opacity-80 mt-1">
-                            {formatTime(countdown)}
-                          </span>
-                        )}
-                      </div>
-                    </button>
-
-                    <p className="text-sm opacity-80 mt-3">
-                      Estado:{" "}
-                      <strong>
-                        {!state
-                          ? "Sin datos"
-                          : state.online
-                          ? "Online"
-                          : "Offline"}
-                      </strong>{" "}
-                      · Sirena:{" "}
-                      <strong>
-                        {state?.siren === "ON" ? "Activada" : "Desactivada"}
-                      </strong>
-                    </p>
-                  </>
-                )}
+                            : state.online
+                            ? "Online"
+                            : "Offline"}
+                        </strong>{" "}
+                        · Sirena:{" "}
+                        <strong>
+                          {state?.siren === "ON" ? "Activada" : "Desactivada"}
+                        </strong>
+                      </p>
+                    </>
+                  )}
+                </div>
               </div>
 
-              {/* Perfil (derecha arriba en md+) */}
-              <div className="rounded-xl border p-4 grid gap-2 order-3 md:order-2 md:col-start-2 md:row-start-1">
-                <p className="text-sm opacity-70">Tu perfil</p>
-                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                  <div className="grid grid-cols-[90px_1fr] gap-2">
-                    <dt className="opacity-60">Usuario</dt>
-                    <dd className="font-medium break-words">
-                      {user.firstName + " " + user.lastName || "—"}
-                    </dd>
-                  </div>
-                  <div className="grid grid-cols-[90px_1fr] gap-2">
-                    <dt className="opacity-60">Email</dt>
-                    <dd
-                      className="font-medium truncate"
-                      title={user.email || "—"}
-                    >
-                      {user.email || "—"}
-                    </dd>
-                  </div>
-                  <div className="grid grid-cols-[90px_1fr] gap-2">
-                    <dt className="opacity-60">Etapa</dt>
-                    <dd className="font-medium">{user.etapa || "—"}</dd>
-                  </div>
-                  <div className="grid grid-cols-[90px_1fr] gap-2">
-                    <dt className="opacity-60">Manzana</dt>
-                    <dd className="font-medium">{user.manzana || "—"}</dd>
-                  </div>
-                  <div className="grid grid-cols-[90px_1fr] gap-2">
-                    <dt className="opacity-60">Villa</dt>
-                    <dd className="font-medium">{user.villa || "—"}</dd>
-                  </div>
-                  <div className="grid grid-cols-[90px_1fr] gap-2">
-                    <dt className="opacity-60">Rol</dt>
-                    <dd className="font-medium">{user.role}</dd>
-                  </div>
-                </dl>
-              </div>
-
-              {/* Imagen (derecha abajo en md+) */}
-              <div className="rounded-xl border overflow-hidden relative order-2 md:order-3 md:col-start-2 md:row-start-2">
+              {/* Imagen */}
+              <div className="rounded-xl border overflow-hidden relative">
+                {/* CAMBIO 2: Se usa la variable `imageUrba` en el `src` */}
                 <Image
-                  src="/urbanitation/savali.jpeg"
+                  src={imageUrba}
                   alt={`Foto de ${user.urbanizacion?.name || "urbanización"}`}
                   width={1600}
                   height={900}
