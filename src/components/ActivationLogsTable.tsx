@@ -195,6 +195,8 @@ export default function ActivationLogsTable() {
         "Sirena",
         "Usuario",
         "Nombre",
+        "Cedula",
+        "Celular",
         "E/M/V",
         "Acción",
         "Resultado",
@@ -208,6 +210,8 @@ export default function ActivationLogsTable() {
           r.deviceId,
           r.user.username,
           r.user.fullName,
+          r.user.cedula ?? "-",
+          r.user.celular ?? "-",
           `${r.user.etapa ?? "-"} / ${r.user.manzana ?? "-"} / ${
             r.user.villa ?? "-"
           }`,
@@ -315,6 +319,8 @@ export default function ActivationLogsTable() {
                 <th className="px-3 py-2 text-left">Sirena</th>
                 <th className="px-3 py-2 text-left">Usuario</th>
                 <th className="px-3 py-2 text-left">Nombre</th>
+                <th className="px-3 py-2 text-left">Cédula</th>
+                <th className="px-3 py-2 text-left">Celular</th>
                 <th className="px-3 py-2 text-left">E/M/V</th>
                 <th className="px-3 py-2 text-left">Acción</th>
                 <th className="px-3 py-2 text-left">Resultado</th>
@@ -354,6 +360,8 @@ export default function ActivationLogsTable() {
                     <td className="px-3 py-2 font-medium">{r.deviceId}</td>
                     <td className="px-3 py-2">{r.user.username}</td>
                     <td className="px-3 py-2">{r.user.fullName}</td>
+                    <td className="px-3 py-2">{r.user.cedula ?? "-"}</td>
+                    <td className="px-3 py-2">{r.user.celular ?? "-"}</td>
                     <td className="px-3 py-2">
                       {r.user.etapa ?? "-"} / {r.user.manzana ?? "-"} /{" "}
                       {r.user.villa ?? "-"}

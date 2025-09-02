@@ -7,6 +7,8 @@ export type EnrichedLogUser = {
   etapa: string | null;
   manzana: string | null;
   villa: string | null;
+  cedula: string | null;
+  celular: string | null;
 };
 
 export type EnrichedActivationLog = {
