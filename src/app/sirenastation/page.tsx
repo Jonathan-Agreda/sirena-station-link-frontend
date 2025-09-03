@@ -48,11 +48,9 @@ export default function SirenaStationPage() {
     return `${m}:${s}`;
   }
 
-  // CAMBIO 1: Se crea la variable para la URL de la imagen.
-  // Proporciona una imagen por defecto si no hay nombre de urbanización.
-  let imageUrba = "/urbanitation/savali.jpeg"; // Imagen de respaldo
+  // Imagen de urbanización (fallback seguro)
+  let imageUrba = "/urbanitation/savali.jpeg";
   if (user?.urbanizacion?.name) {
-    // Transforma el nombre: minúsculas y sin espacios
     const transformedName = user.urbanizacion.name
       .trim()
       .toLowerCase()
@@ -95,10 +93,95 @@ export default function SirenaStationPage() {
 
             {/* Main grid */}
             <div className="grid gap-6 md:grid-cols-[1.2fr_1fr]">
-              {/* Perfil + Sirena */}
+              {/* Columna izquierda (Perfil + Sirena) */}
               <div className="grid gap-6">
-                {/* Perfil */}
-                <div className="rounded-xl border p-4 grid gap-2">
+                {/* ─── Control Sirena: PRIMERO EN MÓVIL ───────────────────── */}
+                <div
+                  className={[
+                    "order-1 md:order-2", // ⬅️ móvil primero, desktop segundo
+                    "rounded-xl p-6 grid place-items-center text-center border gap-3",
+                    user.alicuota === false ? "border-[--danger]" : "",
+                  ].join(" ")}
+                >
+                  {user.alicuota === false ? (
+                    <p className="text-sm">
+                      Tu alícuota está pendiente. La activación de la sirena
+                      está <strong>bloqueada temporalmente</strong>.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-lg font-bold">
+                        {state?.deviceId ||
+                          selectedSirenId ||
+                          user.sirens?.[0]?.deviceId ||
+                          "—"}
+                      </p>
+
+                      {/* Selector de sirena: DEBAJO DEL BOTÓN EN MÓVIL, ARRIBA EN DESKTOP */}
+                      {user.sirens && user.sirens.length > 1 && (
+                        <select
+                          value={selectedSirenId || ""}
+                          onChange={(e) => setSelectedSirenId(e.target.value)}
+                          className="order-2 md:order-1 mb-0 md:mb-3 rounded-lg border px-3 py-2 text-sm bg-background w-full sm:w-auto"
+                        >
+                          {user.sirens.map((s) => (
+                            <option key={s.deviceId} value={s.deviceId}>
+                              {s.deviceId}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+
+                      <button
+                        onClick={handleToggle}
+                        disabled={!state || !state.online}
+                        className={`order-1 md:order-2 relative h-48 w-48 sm:h-64 sm:w-64 rounded-full grid place-items-center text-white font-bold transition ${
+                          !state
+                            ? "bg-gray-gradient cursor-not-allowed"
+                            : !state.online
+                            ? "bg-gray-gradient cursor-not-allowed"
+                            : state.siren === "ON"
+                            ? "bg-red-gradient animate-pulse cursor-pointer"
+                            : "bg-green-gradient hover:brightness-110 cursor-pointer"
+                        }`}
+                        aria-live="polite"
+                      >
+                        <div className="flex flex-col items-center">
+                          <span className="text-xl sm:text-2xl font-bold">
+                            {!state
+                              ? "Sin datos"
+                              : state.siren === "ON"
+                              ? "Apagar"
+                              : "Encender"}
+                          </span>
+                          {countdown > 0 && state?.online && (
+                            <span className="text-base sm:text-lg opacity-80 mt-1">
+                              {formatTime(countdown)}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+
+                      <p className="text-sm opacity-80 mt-3">
+                        Estado:{" "}
+                        <strong>
+                          {!state
+                            ? "Sin datos"
+                            : state.online
+                            ? "Online"
+                            : "Offline"}
+                        </strong>{" "}
+                        · Sirena:{" "}
+                        <strong>
+                          {state?.siren === "ON" ? "Activada" : "Desactivada"}
+                        </strong>
+                      </p>
+                    </>
+                  )}
+                </div>
+
+                {/* ─── Perfil: SEGUNDO EN MÓVIL, PRIMERO EN DESKTOP ───────── */}
+                <div className="order-2 md:order-1 rounded-xl border p-4 grid gap-2">
                   <p className="text-sm opacity-70">Tu perfil</p>
                   <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
                     <div className="grid grid-cols-[90px_1fr] gap-2">
@@ -134,90 +217,10 @@ export default function SirenaStationPage() {
                     </div>
                   </dl>
                 </div>
-
-                {/* Control Sirena */}
-                <div
-                  className={[
-                    "rounded-xl p-6 grid place-items-center text-center border gap-3",
-                    user.alicuota === false ? "border-[--danger]" : "",
-                  ].join(" ")}
-                >
-                  {user.alicuota === false ? (
-                    <p className="text-sm">
-                      Tu alícuota está pendiente. La activación de la sirena
-                      está <strong>bloqueada temporalmente</strong>.
-                    </p>
-                  ) : (
-                    <>
-                      {user.sirens && user.sirens.length > 1 && (
-                        <select
-                          value={selectedSirenId || ""}
-                          onChange={(e) => setSelectedSirenId(e.target.value)}
-                          className="mb-3 rounded-lg border px-3 py-2 text-sm bg-background w-full sm:w-auto"
-                        >
-                          {user.sirens.map((s) => (
-                            <option key={s.deviceId} value={s.deviceId}>
-                              {s.deviceId}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                      <p className="text-lg font-bold">
-                        {state?.deviceId ||
-                          selectedSirenId ||
-                          user.sirens?.[0]?.deviceId ||
-                          "—"}
-                      </p>
-                      <button
-                        onClick={handleToggle}
-                        disabled={!state || !state.online}
-                        className={`relative h-48 w-48 sm:h-64 sm:w-64 rounded-full grid place-items-center text-white font-bold transition ${
-                          !state
-                            ? "bg-gray-gradient cursor-not-allowed"
-                            : !state.online
-                            ? "bg-gray-gradient cursor-not-allowed"
-                            : state.siren === "ON"
-                            ? "bg-red-gradient animate-pulse cursor-pointer"
-                            : "bg-green-gradient hover:brightness-110 cursor-pointer"
-                        }`}
-                      >
-                        <div className="flex flex-col items-center">
-                          <span className="text-xl sm:text-2xl font-bold">
-                            {!state
-                              ? "Sin datos"
-                              : state.siren === "ON"
-                              ? "Apagar"
-                              : "Encender"}
-                          </span>
-                          {countdown > 0 && state?.online && (
-                            <span className="text-base sm:text-lg opacity-80 mt-1">
-                              {formatTime(countdown)}
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                      <p className="text-sm opacity-80 mt-3">
-                        Estado:{" "}
-                        <strong>
-                          {!state
-                            ? "Sin datos"
-                            : state.online
-                            ? "Online"
-                            : "Offline"}
-                        </strong>{" "}
-                        · Sirena:{" "}
-                        <strong>
-                          {state?.siren === "ON" ? "Activada" : "Desactivada"}
-                        </strong>
-                      </p>
-                    </>
-                  )}
-                </div>
               </div>
 
-              {/* Imagen */}
+              {/* Imagen (se mantiene igual y queda tercera en móvil) */}
               <div className="rounded-xl border overflow-hidden relative">
-                {/* CAMBIO 2: Se usa la variable `imageUrba` en el `src` */}
                 <Image
                   src={imageUrba}
                   alt={`Foto de ${user.urbanizacion?.name || "urbanización"}`}
