@@ -31,7 +31,7 @@ export default function DashboardPage() {
       <section className="min-h-[100svh] w-full px-3 sm:px-4 py-6">
         {/* Header */}
         <div className="mx-auto flex max-w-6xl flex-col sm:flex-row sm:items-center gap-4">
-          {/* 👇 CAMBIO AQUÍ: Se ajusta el tamaño controlando solo la altura */}
+          {/* 👇 tamaño controlando solo la altura */}
           <LogoAnimated className="h-12 sm:h-16 w-auto" />
 
           <div className="flex flex-col">

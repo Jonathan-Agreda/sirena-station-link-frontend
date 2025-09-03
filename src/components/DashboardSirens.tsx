@@ -2,9 +2,10 @@
 
 import { useDashboardSirens } from "@/hook/useDashboardSirens";
 import { Bell, BellOff, Volume2, VolumeX, Vibrate } from "lucide-react";
-// CAMBIO: Se importa useCallback para solucionar las advertencias de useEffect
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useSirenTimerStore } from "@/store/sirenTimer";
 
+/* ---------- Utilidades ---------- */
 function formatTime(sec?: number) {
   if (!sec || sec <= 0) return "";
   const m = Math.floor(sec / 60)
@@ -16,13 +17,91 @@ function formatTime(sec?: number) {
   return `${m}:${s}`;
 }
 
-// CAMBIO: Se define un tipo para window que incluye la propiedad vendor-prefixed
 interface WindowWithAudioContext extends Window {
   webkitAudioContext?: typeof AudioContext;
 }
 
+/* ---------- Tipo extendido (no toca el hook) ---------- */
+type SirenItem = {
+  deviceId: string;
+  siren: "ON" | "OFF";
+  online: boolean;
+  pending?: boolean;
+  ip?: string;
+  countdown?: number; // del socket actual
+  updatedAt?: string; // ISO
+  autoOffAt?: string; // ISO (si backend lo aporta)
+};
+
 export default function DashboardSirens() {
-  const { sirens, sendCommand } = useDashboardSirens();
+  const { sirens, sendCommand } = useDashboardSirens() as {
+    sirens: SirenItem[];
+    sendCommand: (deviceId: string, action: "ON" | "OFF") => void;
+  };
+
+  /* ---------- Persistencia de contadores ---------- */
+  const AUTO_OFF_MS = Number(process.env.NEXT_PUBLIC_SIRENA_AUTO_OFF) || 300000; // ms
+
+  const timers = useSirenTimerStore((s) => s.timers);
+  const setTimer = useSirenTimerStore((s) => s.setTimer);
+  const clearTimer = useSirenTimerStore((s) => s.clearTimer);
+  const getTimer = useSirenTimerStore((s) => s.getTimer);
+
+  // Rehidratar/actualizar timers cuando cambia el listado recibido por socket
+  useEffect(() => {
+    const now = Date.now();
+    for (const s of sirens) {
+      const existing = getTimer(s.deviceId);
+
+      if (s.siren === "ON") {
+        // 1) usa autoOffAt si viene del backend
+        const autoOffAt = s.autoOffAt
+          ? new Date(s.autoOffAt).getTime()
+          : undefined;
+        // 2) si no, usa updatedAt + AUTO_OFF_MS
+        const updatedAtMs = s.updatedAt
+          ? new Date(s.updatedAt).getTime()
+          : undefined;
+        // 3) si tampoco, usa countdown del socket como respaldo
+        const fromCountdown =
+          typeof s.countdown === "number" && s.countdown > 0
+            ? now + s.countdown * 1000
+            : undefined;
+
+        const expiresAt =
+          autoOffAt ??
+          (updatedAtMs
+            ? updatedAtMs + AUTO_OFF_MS
+            : fromCountdown ?? now + AUTO_OFF_MS);
+
+        // evita escribir en cada render: solo si no existe o cambió de forma significativa
+        if (!existing || Math.abs(existing.expiresAt - expiresAt) > 1500) {
+          setTimer(s.deviceId, expiresAt, Math.floor(AUTO_OFF_MS / 1000));
+        }
+      } else if (existing) {
+        clearTimer(s.deviceId);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sirens]);
+
+  // Tick 1s para calcular restantes persistidos
+  const [nowTs, setNowTs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const getDisplayCountdown = useCallback(
+    (deviceId: string, fallback?: number) => {
+      const t = timers[deviceId];
+      if (t?.expiresAt) {
+        return Math.max(0, Math.floor((t.expiresAt - nowTs) / 1000));
+      }
+      return fallback ?? 0;
+    },
+    [timers, nowTs]
+  );
 
   /* ----------------------- Orden y métricas ----------------------- */
   const sortedSirens = useMemo(
@@ -74,10 +153,8 @@ export default function DashboardSirens() {
 
   const audioCtxRef = useRef<AudioContext | null>(null);
 
-  // CAMBIO: Se envuelve `ensureAudioCtx` en useCallback para estabilizarla
   const ensureAudioCtx = useCallback(() => {
     if (!audioCtxRef.current) {
-      // CAMBIO: Se usa la nueva interfaz en lugar de `any` para evitar la advertencia
       const Ctx =
         window.AudioContext ||
         (window as WindowWithAudioContext).webkitAudioContext;
@@ -86,7 +163,6 @@ export default function DashboardSirens() {
     return audioCtxRef.current;
   }, []);
 
-  // CAMBIO: Se envuelve `beep` en useCallback y se le añade su dependencia (`ensureAudioCtx`)
   const beep = useCallback(() => {
     const ctx = ensureAudioCtx();
     if (!ctx) return;
@@ -147,7 +223,6 @@ export default function DashboardSirens() {
     const n = new Notification(title, {
       body,
       tag: "sirena-aggregate",
-      // CAMBIO: Se elimina la propiedad no estándar `renotify` para solucionar el error de tipo.
     });
     setTimeout(() => n.close(), 6000);
   }
@@ -175,7 +250,6 @@ export default function DashboardSirens() {
     }
 
     prevActiveIdsRef.current = current;
-    // CAMBIO: Se añaden `beep` y `ensureAudioCtx` a las dependencias.
   }, [
     activeOnline,
     alertsEnabled,
@@ -199,7 +273,6 @@ export default function DashboardSirens() {
     };
     const t = setInterval(tick, intervalMs);
     return () => clearInterval(t);
-    // CAMBIO: Se añaden `beep` y `ensureAudioCtx` a las dependencias.
   }, [
     alertsEnabled,
     muted,
@@ -336,6 +409,9 @@ export default function DashboardSirens() {
           const isOn = s.siren === "ON";
           const disabled = !s.online || s.pending;
 
+          // ⬇️ contador a mostrar: persistido si existe, si no el del socket
+          const displayCountdown = getDisplayCountdown(s.deviceId, s.countdown);
+
           return (
             <div
               key={s.deviceId}
@@ -374,9 +450,10 @@ export default function DashboardSirens() {
                       ? "Apagar"
                       : "Encender"}
                   </span>
-                  {s.countdown && s.countdown > 0 && !s.pending && (
+
+                  {displayCountdown > 0 && !s.pending && (
                     <span className="absolute bottom-2 text-xs">
-                      {formatTime(s.countdown)}
+                      {formatTime(displayCountdown)}
                     </span>
                   )}
                 </button>

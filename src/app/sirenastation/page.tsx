@@ -11,6 +11,16 @@ import { useSirenSocket } from "@/hook/useSirenSocket";
 import { toggleSiren } from "@/services/sirens";
 import { useState, useEffect } from "react";
 import type { Role } from "@/services/auth";
+import { useSirenTimerStore } from "@/store/sirenTimer";
+
+// 🔹 Tipo extendido para lo que puede traer el socket
+type SirenState = {
+  deviceId: string;
+  online: boolean;
+  siren: "ON" | "OFF";
+  updatedAt?: string; // ISO date
+  autoOffAt?: string; // ISO date (opcional futuro)
+};
 
 export default function SirenaStationPage() {
   const { data: user, isLoading } = useQuery<MeResponse>({
@@ -26,13 +36,78 @@ export default function SirenaStationPage() {
     }
   }, [user]);
 
-  const { state, countdown } = useSirenSocket(selectedSirenId || "");
+  // ⬅️ casteamos el state recibido al tipo extendido
+  const { state, countdown } = useSirenSocket(selectedSirenId || "") as {
+    state: SirenState | undefined;
+    countdown: number;
+  };
+
+  // ====== Persistencia del contador ======
+  const AUTO_OFF_MS = Number(process.env.NEXT_PUBLIC_SIRENA_AUTO_OFF) || 300000; // ms
+
+  const timers = useSirenTimerStore((s) => s.timers);
+  const setTimer = useSirenTimerStore((s) => s.setTimer);
+  const clearTimer = useSirenTimerStore((s) => s.clearTimer);
+  const getTimer = useSirenTimerStore((s) => s.getTimer);
+
+  // Al recibir estado, crear/actualizar/limpiar timer persistente
+  useEffect(() => {
+    if (!selectedSirenId || !state) return;
+
+    if (state.siren === "ON") {
+      const now = Date.now();
+      const existing = getTimer(selectedSirenId);
+      if (existing && existing.expiresAt > now) return;
+
+      // Preferir autoOffAt si lo trae el backend
+      const autoOffAt = state.autoOffAt
+        ? new Date(state.autoOffAt).getTime()
+        : undefined;
+
+      // Si no, usar updatedAt (+ AUTO_OFF_MS)
+      const updatedAtMs = state.updatedAt
+        ? new Date(state.updatedAt).getTime()
+        : undefined;
+
+      const expiresAt =
+        autoOffAt ??
+        (updatedAtMs ? updatedAtMs + AUTO_OFF_MS : now + AUTO_OFF_MS);
+
+      setTimer(selectedSirenId, expiresAt, Math.floor(AUTO_OFF_MS / 1000));
+    } else {
+      // OFF -> limpiar timer
+      clearTimer(selectedSirenId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state?.siren, state?.updatedAt, selectedSirenId]);
+
+  // Tick de 1s para calcular restante persistido
+  const [nowTs, setNowTs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const persistedRemainingSec =
+    selectedSirenId && timers[selectedSirenId]?.expiresAt
+      ? Math.max(
+          0,
+          Math.floor((timers[selectedSirenId].expiresAt - nowTs) / 1000)
+        )
+      : 0;
+
+  // Mostrar primero el persistente; si no existe, usa el countdown del hook
+  const displayCountdown =
+    persistedRemainingSec > 0 ? persistedRemainingSec : countdown;
 
   async function handleToggle() {
     if (!state || !state.online) return;
     const action = state.siren === "ON" ? "OFF" : "ON";
     try {
       await toggleSiren(state.deviceId, action);
+      if (action === "OFF" && selectedSirenId) {
+        clearTimer(selectedSirenId);
+      }
     } catch (err) {
       console.error("Error enviando comando:", err);
     }
@@ -98,7 +173,7 @@ export default function SirenaStationPage() {
                 {/* ─── Control Sirena: PRIMERO EN MÓVIL ───────────────────── */}
                 <div
                   className={[
-                    "order-1 md:order-2", // ⬅️ móvil primero, desktop segundo
+                    "order-1 md:order-2",
                     "rounded-xl p-6 grid place-items-center text-center border gap-3",
                     user.alicuota === false ? "border-[--danger]" : "",
                   ].join(" ")}
@@ -117,7 +192,7 @@ export default function SirenaStationPage() {
                           "—"}
                       </p>
 
-                      {/* Selector de sirena: DEBAJO DEL BOTÓN EN MÓVIL, ARRIBA EN DESKTOP */}
+                      {/* Selector de sirena */}
                       {user.sirens && user.sirens.length > 1 && (
                         <select
                           value={selectedSirenId || ""}
@@ -154,9 +229,9 @@ export default function SirenaStationPage() {
                               ? "Apagar"
                               : "Encender"}
                           </span>
-                          {countdown > 0 && state?.online && (
+                          {displayCountdown > 0 && state?.online && (
                             <span className="text-base sm:text-lg opacity-80 mt-1">
-                              {formatTime(countdown)}
+                              {formatTime(displayCountdown)}
                             </span>
                           )}
                         </div>
@@ -219,7 +294,7 @@ export default function SirenaStationPage() {
                 </div>
               </div>
 
-              {/* Imagen (se mantiene igual y queda tercera en móvil) */}
+              {/* Imagen */}
               <div className="rounded-xl border overflow-hidden relative">
                 <Image
                   src={imageUrba}
