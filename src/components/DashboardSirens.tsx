@@ -20,13 +20,26 @@ function formatTime(sec?: number) {
 interface WindowWithAudioContext extends Window {
   webkitAudioContext?: typeof AudioContext;
 }
+type NavigatorWithTouch = Navigator & { maxTouchPoints?: number };
 
-/** Detecta Android + Chrome (donde el constructor de Notification puede lanzar excepción) */
-const isAndroidChrome =
+/** Detectores de plataforma (sin `any`) */
+const navUA = typeof navigator !== "undefined" ? navigator.userAgent : "";
+const navPlatform = typeof navigator !== "undefined" ? navigator.platform : "";
+const navMaxTouchPoints: number =
   typeof navigator !== "undefined" &&
-  /Android/i.test(navigator.userAgent) &&
-  /Chrome\/\d+/i.test(navigator.userAgent) &&
-  !/Firefox/i.test(navigator.userAgent);
+  "maxTouchPoints" in (navigator as NavigatorWithTouch) &&
+  typeof (navigator as NavigatorWithTouch).maxTouchPoints === "number"
+    ? (navigator as NavigatorWithTouch).maxTouchPoints!
+    : 0;
+
+const isAndroidChrome =
+  /Android/i.test(navUA) &&
+  /Chrome\/\d+/i.test(navUA) &&
+  !/Firefox/i.test(navUA);
+
+const isIOS =
+  /iPad|iPhone|iPod/i.test(navUA) ||
+  (navPlatform === "MacIntel" && navMaxTouchPoints > 1);
 
 /* ---------- Tipo extendido (no toca el hook) ---------- */
 type SirenItem = {
@@ -61,15 +74,12 @@ export default function DashboardSirens() {
       const existing = getTimer(s.deviceId);
 
       if (s.siren === "ON") {
-        // 1) usa autoOffAt si viene del backend
         const autoOffAt = s.autoOffAt
           ? new Date(s.autoOffAt).getTime()
           : undefined;
-        // 2) si no, usa updatedAt + AUTO_OFF_MS
         const updatedAtMs = s.updatedAt
           ? new Date(s.updatedAt).getTime()
           : undefined;
-        // 3) si tampoco, usa countdown del socket como respaldo
         const fromCountdown =
           typeof s.countdown === "number" && s.countdown > 0
             ? now + s.countdown * 1000
@@ -81,7 +91,6 @@ export default function DashboardSirens() {
             ? updatedAtMs + AUTO_OFF_MS
             : fromCountdown ?? now + AUTO_OFF_MS);
 
-        // evita escribir en cada render: solo si no existe o cambió de forma significativa
         if (!existing || Math.abs(existing.expiresAt - expiresAt) > 1500) {
           setTimer(s.deviceId, expiresAt, Math.floor(AUTO_OFF_MS / 1000));
         }
@@ -92,11 +101,39 @@ export default function DashboardSirens() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sirens]);
 
-  // Tick 1s para calcular restantes persistidos
+  // Tick "suave": iOS usa rAF (1 update/segundo), otros setInterval(1s)
   const [nowTs, setNowTs] = useState(() => Date.now());
+  const secRef = useRef(Math.floor(Date.now() / 1000));
+
   useEffect(() => {
-    const id = setInterval(() => setNowTs(Date.now()), 1000);
-    return () => clearInterval(id);
+    if (isIOS) {
+      let raf = 0;
+      const loop = () => {
+        const sec = Math.floor(Date.now() / 1000);
+        if (sec !== secRef.current) {
+          secRef.current = sec;
+          setNowTs(sec * 1000); // fija al inicio del segundo
+        }
+        raf = window.requestAnimationFrame(loop);
+      };
+      raf = window.requestAnimationFrame(loop);
+      return () => window.cancelAnimationFrame(raf);
+    } else {
+      const id = setInterval(() => setNowTs(Date.now()), 1000);
+      return () => clearInterval(id);
+    }
+  }, []);
+
+  // Ajuste al volver de background (iOS/otros): refresca inmediato
+  useEffect(() => {
+    const onVis = () => setNowTs(Date.now());
+    const opts: AddEventListenerOptions = { passive: true };
+    document.addEventListener("visibilitychange", onVis, opts);
+    window.addEventListener("focus", onVis, opts);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis, opts);
+      window.removeEventListener("focus", onVis, opts);
+    };
   }, []);
 
   const getDisplayCountdown = useCallback(
@@ -193,12 +230,9 @@ export default function DashboardSirens() {
       gain.gain.exponentialRampToValueAtTime(0.00001, now + 0.25);
       osc.start(now);
       osc.stop(now + 0.26);
-    } catch {
-      /* no-op */
-    }
+    } catch {}
   }, [ensureAudioCtx]);
 
-  // Desbloquear audio con gesto del usuario
   useEffect(() => {
     if (!soundEnabled) return;
     const resume = () => {
@@ -214,7 +248,6 @@ export default function DashboardSirens() {
     };
   }, [soundEnabled, ensureAudioCtx]);
 
-  // Pedir permiso de notifs (no en Android/Chrome)
   useEffect(() => {
     try {
       if (typeof window === "undefined" || isAndroidChrome) return;
@@ -226,23 +259,18 @@ export default function DashboardSirens() {
           })
           .catch(() => {});
       }
-    } catch {
-      /* no-op */
-    }
+    } catch {}
   }, []);
 
   async function requestNotifPermission() {
     try {
-      if (isAndroidChrome) return; // deshabilitado en Android/Chrome
+      if (isAndroidChrome) return;
       if (!(typeof window !== "undefined" && "Notification" in window)) return;
       const p = await Notification.requestPermission();
       if (p === "granted") setAlertsEnabled(true);
-    } catch {
-      /* no-op */
-    }
+    } catch {}
   }
 
-  /** Notificación segura: no lanza en Android/Chrome ni en navegadores sin soporte */
   const showNotificationSafe = useCallback(
     (title: string, options?: NotificationOptions) => {
       try {
@@ -258,13 +286,12 @@ export default function DashboardSirens() {
 
         setTimeout(() => {
           try {
-            n.close?.(); // <-- sin any, tipado seguro
+            n.close?.();
           } catch {}
         }, 6000);
 
         return true;
       } catch {
-        // Si algo explota, apagamos alertas para que no vuelva a intentar
         setAlertsEnabled(false);
         return false;
       }
@@ -272,7 +299,6 @@ export default function DashboardSirens() {
     []
   );
 
-  /** Memoizamos para satisfacer react-hooks/exhaustive-deps */
   const notifyAggregate = useCallback(
     (ids: string[]) => {
       if (ids.length === 0) return;
@@ -311,7 +337,7 @@ export default function DashboardSirens() {
     soundEnabled,
     safeBeep,
     ensureAudioCtx,
-    notifyAggregate, // <-- agregado
+    notifyAggregate,
   ]);
 
   useEffect(() => {
@@ -336,7 +362,7 @@ export default function DashboardSirens() {
     intervalMs,
     safeBeep,
     ensureAudioCtx,
-    notifyAggregate, // <-- agregado
+    notifyAggregate,
   ]);
 
   const hasNotifs =
@@ -458,7 +484,6 @@ export default function DashboardSirens() {
           const isOn = s.siren === "ON";
           const disabled = !s.online || s.pending;
 
-          // ⬇️ contador a mostrar: persistido si existe, si no el del socket
           const displayCountdown = getDisplayCountdown(s.deviceId, s.countdown);
 
           return (
