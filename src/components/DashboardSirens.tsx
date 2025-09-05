@@ -21,6 +21,13 @@ interface WindowWithAudioContext extends Window {
   webkitAudioContext?: typeof AudioContext;
 }
 
+/** Detecta Android + Chrome (donde el constructor de Notification puede lanzar excepción) */
+const isAndroidChrome =
+  typeof navigator !== "undefined" &&
+  /Android/i.test(navigator.userAgent) &&
+  /Chrome\/\d+/i.test(navigator.userAgent) &&
+  !/Firefox/i.test(navigator.userAgent);
+
 /* ---------- Tipo extendido (no toca el hook) ---------- */
 type SirenItem = {
   deviceId: string;
@@ -142,8 +149,9 @@ export default function DashboardSirens() {
     [online]
   );
 
+  // En Android/Chrome desactivamos notifs por defecto
   const [alertsEnabled, setAlertsEnabled] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
+    if (typeof window === "undefined" || isAndroidChrome) return false;
     return "Notification" in window && Notification.permission === "granted";
   });
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
@@ -153,35 +161,50 @@ export default function DashboardSirens() {
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   const ensureAudioCtx = useCallback(() => {
-    if (!audioCtxRef.current) {
-      const Ctx =
-        window.AudioContext ||
-        (window as WindowWithAudioContext).webkitAudioContext;
-      if (Ctx) audioCtxRef.current = new Ctx();
+    try {
+      if (!audioCtxRef.current) {
+        const Ctx =
+          (typeof window !== "undefined" &&
+            (window.AudioContext ||
+              (window as WindowWithAudioContext).webkitAudioContext)) ||
+          undefined;
+        if (typeof Ctx === "function") {
+          audioCtxRef.current = new Ctx();
+        }
+      }
+      return audioCtxRef.current;
+    } catch {
+      return null;
     }
-    return audioCtxRef.current;
   }, []);
 
-  const beep = useCallback(() => {
-    const ctx = ensureAudioCtx();
-    if (!ctx) return;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.value = 880;
-    gain.gain.value = 0.001;
-    osc.connect(gain).connect(ctx.destination);
-    const now = ctx.currentTime;
-    gain.gain.exponentialRampToValueAtTime(0.25, now + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.00001, now + 0.25);
-    osc.start(now);
-    osc.stop(now + 0.26);
+  const safeBeep = useCallback(() => {
+    try {
+      const ctx = ensureAudioCtx();
+      if (!ctx || ctx.state !== "running") return;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 880;
+      gain.gain.value = 0.001;
+      osc.connect(gain).connect(ctx.destination);
+      const now = ctx.currentTime;
+      gain.gain.exponentialRampToValueAtTime(0.25, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.00001, now + 0.25);
+      osc.start(now);
+      osc.stop(now + 0.26);
+    } catch {
+      /* no-op */
+    }
   }, [ensureAudioCtx]);
 
+  // Desbloquear audio con gesto del usuario
   useEffect(() => {
     if (!soundEnabled) return;
     const resume = () => {
-      ensureAudioCtx()?.resume?.();
+      try {
+        ensureAudioCtx()?.resume?.();
+      } catch {}
     };
     window.addEventListener("click", resume, { once: true });
     window.addEventListener("touchstart", resume, { once: true });
@@ -191,40 +214,78 @@ export default function DashboardSirens() {
     };
   }, [soundEnabled, ensureAudioCtx]);
 
+  // Pedir permiso de notifs (no en Android/Chrome)
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!("Notification" in window)) return;
-    if (Notification.permission === "default") {
-      Notification.requestPermission().then((p) => {
-        if (p === "granted") setAlertsEnabled(true);
-      });
+    try {
+      if (typeof window === "undefined" || isAndroidChrome) return;
+      if (!("Notification" in window)) return;
+      if (Notification.permission === "default") {
+        Notification.requestPermission()
+          .then((p) => {
+            if (p === "granted") setAlertsEnabled(true);
+          })
+          .catch(() => {});
+      }
+    } catch {
+      /* no-op */
     }
   }, []);
 
   async function requestNotifPermission() {
-    if (!(typeof window !== "undefined" && "Notification" in window)) return;
-    const p = await Notification.requestPermission();
-    if (p === "granted") setAlertsEnabled(true);
+    try {
+      if (isAndroidChrome) return; // deshabilitado en Android/Chrome
+      if (!(typeof window !== "undefined" && "Notification" in window)) return;
+      const p = await Notification.requestPermission();
+      if (p === "granted") setAlertsEnabled(true);
+    } catch {
+      /* no-op */
+    }
   }
 
-  function notifyAggregate(ids: string[]) {
-    if (!(typeof window !== "undefined" && "Notification" in window)) return;
-    if (Notification.permission !== "granted") return;
-    if (ids.length === 0) return;
+  /** Notificación segura: no lanza en Android/Chrome ni en navegadores sin soporte */
+  const showNotificationSafe = useCallback(
+    (title: string, options?: NotificationOptions) => {
+      try {
+        if (isAndroidChrome) return false;
+        if (typeof window === "undefined" || !("Notification" in window))
+          return false;
+        if (Notification.permission !== "granted") return false;
+        if (typeof window.Notification !== "function") return false;
 
-    const title =
-      ids.length === 1 ? "Sirena ACTIVA" : `Sirenas ACTIVAS (${ids.length})`;
-    const MAX = 8;
-    const shown = ids.slice(0, MAX).join(", ");
-    const rest = ids.length > MAX ? `, +${ids.length - MAX} más` : "";
-    const body = shown + rest;
+        const n = new window.Notification(title, options) as Notification & {
+          close?: () => void;
+        };
 
-    const n = new Notification(title, {
-      body,
-      tag: "sirena-aggregate",
-    });
-    setTimeout(() => n.close(), 6000);
-  }
+        setTimeout(() => {
+          try {
+            n.close?.(); // <-- sin any, tipado seguro
+          } catch {}
+        }, 6000);
+
+        return true;
+      } catch {
+        // Si algo explota, apagamos alertas para que no vuelva a intentar
+        setAlertsEnabled(false);
+        return false;
+      }
+    },
+    []
+  );
+
+  /** Memoizamos para satisfacer react-hooks/exhaustive-deps */
+  const notifyAggregate = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) return;
+      const title =
+        ids.length === 1 ? "Sirena ACTIVA" : `Sirenas ACTIVAS (${ids.length})`;
+      const MAX = 8;
+      const shown = ids.slice(0, MAX).join(", ");
+      const rest = ids.length > MAX ? `, +${ids.length - MAX} más` : "";
+      const body = shown + rest;
+      showNotificationSafe(title, { body, tag: "sirena-aggregate" });
+    },
+    [showNotificationSafe]
+  );
 
   const prevActiveIdsRef = useRef<string[]>([]);
   useEffect(() => {
@@ -235,13 +296,23 @@ export default function DashboardSirens() {
     if (newlyOn.length > 0 && alertsEnabled && !muted) {
       notifyAggregate(current);
       if (soundEnabled) {
-        ensureAudioCtx()?.resume?.();
-        beep();
+        try {
+          ensureAudioCtx()?.resume?.();
+          safeBeep();
+        } catch {}
       }
     }
 
     prevActiveIdsRef.current = current;
-  }, [activeOnline, alertsEnabled, muted, soundEnabled, beep, ensureAudioCtx]);
+  }, [
+    activeOnline,
+    alertsEnabled,
+    muted,
+    soundEnabled,
+    safeBeep,
+    ensureAudioCtx,
+    notifyAggregate, // <-- agregado
+  ]);
 
   useEffect(() => {
     if (!alertsEnabled || muted || activeOnline.length === 0) return;
@@ -249,8 +320,10 @@ export default function DashboardSirens() {
       const ids = activeOnline.map((s) => s.deviceId);
       notifyAggregate(ids);
       if (soundEnabled) {
-        ensureAudioCtx()?.resume?.();
-        beep();
+        try {
+          ensureAudioCtx()?.resume?.();
+          safeBeep();
+        } catch {}
       }
     };
     const t = setInterval(tick, intervalMs);
@@ -261,16 +334,22 @@ export default function DashboardSirens() {
     soundEnabled,
     activeOnline,
     intervalMs,
-    beep,
+    safeBeep,
     ensureAudioCtx,
+    notifyAggregate, // <-- agregado
   ]);
 
-  const hasNotifs = typeof window !== "undefined" && "Notification" in window;
+  const hasNotifs =
+    typeof window !== "undefined" &&
+    "Notification" in window &&
+    !isAndroidChrome;
   const notifGranted = hasNotifs && Notification.permission === "granted";
   const notifTitle = notifGranted
     ? alertsEnabled
       ? "Notificaciones activadas"
       : "Notificaciones desactivadas"
+    : isAndroidChrome
+    ? "Notificaciones deshabilitadas en Android/Chrome"
     : "Activar notificaciones del navegador";
 
   /* ----------------------- UI ----------------------- */
@@ -316,11 +395,12 @@ export default function DashboardSirens() {
                   ? setAlertsEnabled((v) => !v)
                   : requestNotifPermission()
               }
+              disabled={!hasNotifs}
               className={`cursor-pointer flex items-center gap-1 rounded-lg px-2 py-1 transition ${
                 alertsEnabled
                   ? "bg-emerald-500/15 text-emerald-600"
                   : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
-              }`}
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
               title={notifTitle}
             >
               {alertsEnabled ? <Bell size={16} /> : <BellOff size={16} />}
@@ -329,14 +409,18 @@ export default function DashboardSirens() {
                   ? alertsEnabled
                     ? "Notifs ON"
                     : "Notifs OFF"
-                  : "Permitir notifs"}
+                  : hasNotifs
+                  ? "Permitir notifs"
+                  : "Notifs no disponibles"}
               </span>
             </button>
 
             {/* Sonido */}
             <button
               onClick={() => {
-                ensureAudioCtx()?.resume?.();
+                try {
+                  ensureAudioCtx()?.resume?.();
+                } catch {}
                 setSoundEnabled((v) => !v);
               }}
               className={`cursor-pointer flex items-center gap-1 rounded-lg px-2 py-1 transition ${
