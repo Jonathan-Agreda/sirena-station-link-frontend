@@ -123,15 +123,25 @@ export default function SirenaStationPage() {
     return `${m}:${s}`;
   }
 
-  // Imagen de urbanización (fallback seguro)
-  let imageUrba = "/urbanitation/savali.jpeg";
-  if (user?.urbanizacion?.name) {
-    const transformedName = user.urbanizacion.name
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, "");
-    imageUrba = `/urbanitation/${transformedName}.jpeg`;
-  }
+  /* ================== Imagen de urbanización ================== */
+  // nombre base sin espacios, minúsculas
+  const baseUrbanName =
+    user?.urbanizacion?.name?.trim().toLowerCase().replace(/\s+/g, "") ||
+    "savali";
+
+  // cache-bust opcional (si cambias imagen con mismo nombre)
+  const ASSET_VER = process.env.NEXT_PUBLIC_ASSET_VERSION ?? "1";
+
+  // estado de src para permitir fallback de extensión
+  const [imgSrc, setImgSrc] = useState<string>(
+    `/urbanitation/${baseUrbanName}.jpg?v=${ASSET_VER}`
+  );
+
+  // si cambia la urbanización, reiniciar a .jpg
+  useEffect(() => {
+    setImgSrc(`/urbanitation/${baseUrbanName}.jpg?v=${ASSET_VER}`);
+  }, [baseUrbanName, ASSET_VER]);
+  /* ============================================================ */
 
   return (
     <RoleGate
@@ -297,12 +307,23 @@ export default function SirenaStationPage() {
               {/* Imagen */}
               <div className="rounded-xl border overflow-hidden relative">
                 <Image
-                  src={imageUrba}
+                  src={imgSrc}
                   alt={`Foto de ${user.urbanizacion?.name || "urbanización"}`}
                   width={1600}
                   height={900}
                   className="h-56 sm:h-64 md:h-full w-full object-cover"
                   priority
+                  onError={() => {
+                    // si falla .jpg → probar .jpeg
+                    if (imgSrc.includes(".jpg")) {
+                      setImgSrc(
+                        `/urbanitation/${baseUrbanName}.jpeg?v=${ASSET_VER}`
+                      );
+                    } else if (!imgSrc.includes("/savali.")) {
+                      // si también falla .jpeg → fallback global
+                      setImgSrc(`/urbanitation/savali.jpg?v=${ASSET_VER}`);
+                    }
+                  }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
                 <div className="absolute bottom-3 left-3 text-white drop-shadow">
