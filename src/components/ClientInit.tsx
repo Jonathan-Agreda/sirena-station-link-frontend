@@ -1,20 +1,16 @@
-// src/components/ClientInit.tsx
 "use client";
 
 import { useEffect } from "react";
-import { primeFeedback, safeBeep, safeVibrate } from "@/lib/device-feedback";
+import { primeFeedback, safeBeep } from "@/lib/device-feedback";
 
 // Parche defensivo en runtime para Android/Chrome.
-// 1) "Primea" el audio tras el primer gesto del usuario.
-// 2) Envuelve navigator.vibrate con try/catch y sanitización.
-// 3) Evita que errores de promesas no manejadas crasheen la UI.
+// Quitamos cualquier intento de vibración.
 
 export default function ClientInit() {
   useEffect(() => {
     const prime = () => {
       primeFeedback();
-      // Pequeña vibración y beep opcionales para “desbloquear” policies (no pasa nada si fallan)
-      safeVibrate(10);
+      // Intento de “desbloquear” audio; si falla, no rompe.
       safeBeep();
       window.removeEventListener("pointerdown", prime);
       window.removeEventListener("touchstart", prime);
@@ -24,11 +20,10 @@ export default function ClientInit() {
     window.addEventListener("touchstart", prime, { once: true });
     window.addEventListener("click", prime, { once: true });
 
-    // Blindaje global de errores no manejados (no rompe, solo loggea)
     const onRejection = (e: PromiseRejectionEvent) => {
-      // Muchos browsers móviles lanzan DOMException por audio/vibrate; los ignoramos
-      // y dejamos un log mínimo para diagnosticar si hace falta.
-      console.debug("[Ignored unhandledrejection]", e?.reason);
+      if (process.env.NODE_ENV !== "production") {
+        console.debug("[Ignored unhandledrejection]", e?.reason);
+      }
       e.preventDefault();
     };
     window.addEventListener("unhandledrejection", onRejection);

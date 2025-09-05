@@ -1,7 +1,7 @@
 "use client";
 
 import { useDashboardSirens } from "@/hook/useDashboardSirens";
-import { Bell, BellOff, Volume2, VolumeX, Vibrate } from "lucide-react";
+import { Bell, BellOff, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useSirenTimerStore } from "@/store/sirenTimer";
 
@@ -147,7 +147,6 @@ export default function DashboardSirens() {
     return "Notification" in window && Notification.permission === "granted";
   });
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
-  const [vibrateEnabled, setVibrateEnabled] = useState<boolean>(false);
   const [muted, setMuted] = useState<boolean>(false);
   const intervalMs = 20000;
 
@@ -227,13 +226,6 @@ export default function DashboardSirens() {
     setTimeout(() => n.close(), 6000);
   }
 
-  function fireVibration() {
-    if (!("vibrate" in navigator)) return;
-    try {
-      navigator.vibrate([220, 100, 220]);
-    } catch {}
-  }
-
   const prevActiveIdsRef = useRef<string[]>([]);
   useEffect(() => {
     const current = activeOnline.map((s) => s.deviceId);
@@ -246,19 +238,10 @@ export default function DashboardSirens() {
         ensureAudioCtx()?.resume?.();
         beep();
       }
-      if (vibrateEnabled) fireVibration();
     }
 
     prevActiveIdsRef.current = current;
-  }, [
-    activeOnline,
-    alertsEnabled,
-    muted,
-    soundEnabled,
-    vibrateEnabled,
-    beep,
-    ensureAudioCtx,
-  ]);
+  }, [activeOnline, alertsEnabled, muted, soundEnabled, beep, ensureAudioCtx]);
 
   useEffect(() => {
     if (!alertsEnabled || muted || activeOnline.length === 0) return;
@@ -269,7 +252,6 @@ export default function DashboardSirens() {
         ensureAudioCtx()?.resume?.();
         beep();
       }
-      if (vibrateEnabled) fireVibration();
     };
     const t = setInterval(tick, intervalMs);
     return () => clearInterval(t);
@@ -277,7 +259,6 @@ export default function DashboardSirens() {
     alertsEnabled,
     muted,
     soundEnabled,
-    vibrateEnabled,
     activeOnline,
     intervalMs,
     beep,
@@ -368,22 +349,6 @@ export default function DashboardSirens() {
               {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
               <span className="hidden sm:inline">
                 {soundEnabled ? "Sonido" : "Silencio"}
-              </span>
-            </button>
-
-            {/* Vibración */}
-            <button
-              onClick={() => setVibrateEnabled((v) => !v)}
-              className={`cursor-pointer flex items-center gap-1 rounded-lg px-2 py-1 transition ${
-                vibrateEnabled
-                  ? "bg-cyan-500/15 text-cyan-600"
-                  : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
-              }`}
-              title="Alternar vibración"
-            >
-              <Vibrate size={16} />
-              <span className="hidden sm:inline">
-                {vibrateEnabled ? "Vibrar" : "No vibrar"}
               </span>
             </button>
 
