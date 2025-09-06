@@ -263,8 +263,8 @@ export default function UpdateContactModal({
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--brand-primary]
                 ${
                   canSave
-                    ? "cursor-pointer bg-[--brand-primary] hover:brightness-110 hover:shadow-md"
-                    : "cursor-not-allowed bg-[--brand-primary]/60"
+                    ? "cursor-pointer bg-[var(--brand-primary,#e11d48)] hover:brightness-110 hover:shadow-md"
+                    : "cursor-not-allowed bg-[var(--brand-primary,#e11d48)]/60"
                 }`}
             >
               {isSubmitting ? "Guardando…" : "Guardar"}

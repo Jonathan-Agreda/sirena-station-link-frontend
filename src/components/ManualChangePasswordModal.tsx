@@ -13,32 +13,21 @@ type Props = {
 };
 
 /** ---------- Helpers typesafe para errores ---------- */
-type ErrorPayload = {
-  message?: string | string[];
-};
+type ErrorPayload = { message?: string | string[] };
 
 function extractMessage(err: unknown): string {
-  // axios error → intentar leer payload del backend
   if (isAxiosError(err)) {
     const data = err.response?.data;
-
-    // algunos backends devuelven string directo
     if (typeof data === "string") return data;
-
-    // si es objeto y tiene 'message' string o string[]
     if (typeof data === "object" && data !== null && "message" in data) {
       const msg = (data as ErrorPayload).message;
       if (Array.isArray(msg))
         return msg.filter((x): x is string => typeof x === "string").join(", ");
       if (typeof msg === "string") return msg;
     }
-    // fallback a mensaje de axios
     return err.message ?? "Error de red";
   }
-
-  // Error normal
   if (err instanceof Error) return err.message;
-
   return "No se pudo actualizar la contraseña";
 }
 /** --------------------------------------------------- */
@@ -114,7 +103,7 @@ export default function ManualChangePasswordModal({ open, onClose }: Props) {
           <motion.div
             role="dialog"
             aria-modal="true"
-            className="w-full max-w-md rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 shadow-2xl"
+            className="w-full max-w-md rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 shadow-2xl"
             initial={{ y: 18, scale: 0.98, opacity: 0 }}
             animate={{ y: 0, scale: 1, opacity: 1 }}
             exit={{ y: 18, scale: 0.98, opacity: 0 }}
@@ -129,7 +118,7 @@ export default function ManualChangePasswordModal({ open, onClose }: Props) {
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold">Cambiar contraseña</h2>
-                  <p className="text-xs opacity-70">
+                  <p className="text-xs text-neutral-600 dark:text-neutral-400">
                     Ingresa tu contraseña actual y la nueva.
                   </p>
                 </div>
@@ -149,12 +138,14 @@ export default function ManualChangePasswordModal({ open, onClose }: Props) {
             <div className="px-5 pb-5 pt-4 grid gap-3">
               {/* Contraseña actual */}
               <div className="grid gap-1">
-                <label className="text-xs opacity-70">Contraseña actual</label>
+                <label className="text-xs text-neutral-600 dark:text-neutral-400">
+                  Contraseña actual
+                </label>
                 <div className="relative">
                   <input
                     ref={firstInputRef}
                     type={showCurrent ? "text" : "password"}
-                    className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-transparent px-3 py-2 pr-10 outline-none focus:ring"
+                    className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-transparent text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 px-3 py-2 pr-10 outline-none focus:ring focus:ring-[var(--brand-primary)]/30"
                     placeholder="Tu contraseña actual"
                     value={currentPass}
                     onChange={(e) => setCurrentPass(e.target.value)}
@@ -172,11 +163,13 @@ export default function ManualChangePasswordModal({ open, onClose }: Props) {
 
               {/* Nueva contraseña */}
               <div className="grid gap-1">
-                <label className="text-xs opacity-70">Nueva contraseña</label>
+                <label className="text-xs text-neutral-600 dark:text-neutral-400">
+                  Nueva contraseña
+                </label>
                 <div className="relative">
                   <input
                     type={showNew ? "text" : "password"}
-                    className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-transparent px-3 py-2 pr-10 outline-none focus:ring"
+                    className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-transparent text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 px-3 py-2 pr-10 outline-none focus:ring focus:ring-[var(--brand-primary)]/30"
                     placeholder="Mínimo 6 caracteres"
                     value={newPass}
                     onChange={(e) => setNewPass(e.target.value)}
@@ -205,7 +198,7 @@ export default function ManualChangePasswordModal({ open, onClose }: Props) {
                     }`}
                   />
                 </div>
-                <p className="text-[11px] opacity-70">
+                <p className="text-[11px] text-neutral-600 dark:text-neutral-400">
                   {newPass.length < 6
                     ? "Demasiado corta"
                     : newPass.length < 10
@@ -216,13 +209,13 @@ export default function ManualChangePasswordModal({ open, onClose }: Props) {
 
               {/* Confirmación */}
               <div className="grid gap-1">
-                <label className="text-xs opacity-70">
+                <label className="text-xs text-neutral-600 dark:text-neutral-400">
                   Confirmar contraseña
                 </label>
                 <div className="relative">
                   <input
                     type={showConfirm ? "text" : "password"}
-                    className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-transparent px-3 py-2 pr-10 outline-none focus:ring"
+                    className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-transparent text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 px-3 py-2 pr-10 outline-none focus:ring focus:ring-[var(--brand-primary)]/30"
                     placeholder="Repite la contraseña"
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
@@ -243,7 +236,7 @@ export default function ManualChangePasswordModal({ open, onClose }: Props) {
                   </div>
                 )}
                 {newPass && currentPass && newPass === currentPass && (
-                  <p className="text-[11px] text-red-500/90">
+                  <p className="text-[11px] text-red-600 dark:text-red-500">
                     La nueva contraseña no puede ser igual a la actual.
                   </p>
                 )}
@@ -255,7 +248,7 @@ export default function ManualChangePasswordModal({ open, onClose }: Props) {
               <button
                 disabled={loading}
                 onClick={onClose}
-                className="cursor-pointer rounded-xl border border-black/10 dark:border-white/10 px-4 py-2 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-50"
+                className="cursor-pointer rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-transparent px-4 py-2 text-sm text-neutral-800 dark:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-50"
               >
                 Cancelar
               </button>
