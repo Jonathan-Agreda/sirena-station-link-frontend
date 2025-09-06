@@ -47,7 +47,6 @@ type Props = {
   ) => Promise<void>;
 };
 
-/* ================== Componente ================== */
 export default function UpdateContactModal({
   open,
   onClose,
@@ -65,7 +64,7 @@ export default function UpdateContactModal({
     formState: { errors, isSubmitting, isValid },
   } = useForm<UpdateContactInput>({
     resolver: zodResolver(FormSchema),
-    mode: "onChange", // valida en vivo
+    mode: "onChange",
     defaultValues: {
       email: initial.email ?? "",
       cedula: initial.cedula ?? null,
@@ -73,7 +72,6 @@ export default function UpdateContactModal({
     },
   });
 
-  /* Resetear valores SOLO al abrir */
   useEffect(() => {
     if (!open) return;
     reset({
@@ -83,7 +81,6 @@ export default function UpdateContactModal({
     });
   }, [open, initial.email, initial.cedula, initial.celular, reset]);
 
-  /* Cerrar con ESC */
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -91,44 +88,29 @@ export default function UpdateContactModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  /* Cerrar haciendo click en el backdrop */
   const onBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === backdropRef.current) onClose();
   };
 
-  /* Watch valores actuales */
   const emailVal = watch("email");
   const cedulaVal = watch("cedula");
   const celularVal = watch("celular");
 
   const trimOrNull = (v?: string | null) => (v && v.trim() ? v.trim() : null);
 
-  /* Detectar si hubo cambios */
   const hasChanges = useMemo(() => {
     const eChanged = (emailVal ?? "").trim() !== (initial.email ?? "");
     const ceduChanged = trimOrNull(cedulaVal) !== (initial.cedula ?? null);
     const celuChanged = trimOrNull(celularVal) !== (initial.celular ?? null);
     return eChanged || ceduChanged || celuChanged;
-  }, [
-    emailVal,
-    cedulaVal,
-    celularVal,
-    initial.email,
-    initial.cedula,
-    initial.celular,
-  ]);
+  }, [emailVal, cedulaVal, celularVal, initial]);
 
   const canSave = isValid && hasChanges && !isSubmitting;
 
-  /* Submit */
   const submit = handleSubmit(async (values) => {
     setServerError(null);
 
-    const changes: Partial<{
-      email: string;
-      cedula: string | null;
-      celular: string | null;
-    }> = {
+    const changes = {
       email: values.email.trim(),
       cedula: trimOrNull(values.cedula),
       celular: trimOrNull(values.celular),
@@ -157,10 +139,10 @@ export default function UpdateContactModal({
       aria-modal="true"
       aria-label="Actualizar datos de contacto"
     >
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-background/95 shadow-2xl ring-1 ring-[--brand-primary]/20">
+      <div className="w-full max-w-md rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-neutral-900 shadow-2xl ring-1 ring-[--brand-primary]/20">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
-          <h3 className="text-base sm:text-lg font-semibold">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-200 dark:border-white/10">
+          <h3 className="text-base sm:text-lg font-semibold text-neutral-900 dark:text-neutral-100">
             Actualizar datos
           </h3>
           <button
@@ -176,14 +158,14 @@ export default function UpdateContactModal({
 
         {/* Body */}
         <form onSubmit={submit} className="grid gap-4 px-5 py-4">
-          <p className="text-sm opacity-80">
+          <p className="text-sm text-neutral-700 dark:text-neutral-300">
             Edita tu <strong>email</strong>, <strong>cédula</strong> y{" "}
             <strong>celular</strong>.
           </p>
 
           {/* Email */}
           <div>
-            <label className="text-sm opacity-70 flex items-center gap-2">
+            <label className="text-sm flex items-center gap-2 text-neutral-700 dark:text-neutral-300">
               <Mail size={16} /> Email
             </label>
             <input
@@ -191,7 +173,7 @@ export default function UpdateContactModal({
               autoComplete="email"
               autoFocus
               {...register("email")}
-              className="mt-1 w-full rounded-lg border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-[--brand-primary]"
+              className="mt-1 w-full rounded-lg border border-neutral-300 dark:border-white/10 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 px-3 py-2 outline-none focus:ring-2 focus:ring-[--brand-primary]"
             />
             {errors.email && (
               <p className="mt-1 text-xs text-red-600">
@@ -203,7 +185,7 @@ export default function UpdateContactModal({
           {/* Cédula & Celular */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm opacity-70 flex items-center gap-2">
+              <label className="text-sm flex items-center gap-2 text-neutral-700 dark:text-neutral-300">
                 <IdCard size={16} /> Cédula
               </label>
               <input
@@ -211,7 +193,7 @@ export default function UpdateContactModal({
                 inputMode="numeric"
                 placeholder="10 dígitos (opcional)"
                 {...register("cedula")}
-                className="mt-1 w-full rounded-lg border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-[--brand-primary]"
+                className="mt-1 w-full rounded-lg border border-neutral-300 dark:border-white/10 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 px-3 py-2 outline-none focus:ring-2 focus:ring-[--brand-primary]"
               />
               {errors.cedula && (
                 <p className="mt-1 text-xs text-red-600">
@@ -221,7 +203,7 @@ export default function UpdateContactModal({
             </div>
 
             <div>
-              <label className="text-sm opacity-70 flex items-center gap-2">
+              <label className="text-sm flex items-center gap-2 text-neutral-700 dark:text-neutral-300">
                 <Phone size={16} /> Celular
               </label>
               <input
@@ -229,7 +211,7 @@ export default function UpdateContactModal({
                 inputMode="numeric"
                 placeholder="10 dígitos (opcional)"
                 {...register("celular")}
-                className="mt-1 w-full rounded-lg border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-[--brand-primary]"
+                className="mt-1 w-full rounded-lg border border-neutral-300 dark:border-white/10 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 px-3 py-2 outline-none focus:ring-2 focus:ring-[--brand-primary]"
               />
               {errors.celular && (
                 <p className="mt-1 text-xs text-red-600">
@@ -246,11 +228,11 @@ export default function UpdateContactModal({
           )}
 
           {/* Footer */}
-          <div className="mt-1 flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+          <div className="mt-1 flex items-center justify-end gap-2 pt-2 border-t border-neutral-200 dark:border-white/10">
             <button
               type="button"
               onClick={onClose}
-              className="cursor-pointer rounded-lg border px-4 py-2 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              className="cursor-pointer rounded-lg border border-neutral-300 dark:border-white/10 px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800"
             >
               Cancelar
             </button>
