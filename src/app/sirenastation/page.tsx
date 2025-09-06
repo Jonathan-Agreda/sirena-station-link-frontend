@@ -13,7 +13,7 @@ import { toggleSiren } from "@/services/sirens";
 import { useState, useEffect, useMemo } from "react";
 import { useSirenTimerStore } from "@/store/sirenTimer";
 import UpdateContactModal from "@/components/modals/UpdateContactModal";
-import { updateUserContact } from "@/services/users";
+import { updateMyContact } from "@/services/users";
 
 /* ---------- Tipo extendido para lo que puede traer el socket ---------- */
 type SirenState = {
@@ -58,9 +58,12 @@ export default function SirenaStationPage() {
 
   // Mutación: actualizar email / cédula / celular (acepta SOLO lo que cambió)
   const contactMutation = useMutation({
-    mutationFn: async (payload: ContactPatch) => {
-      if (!user?.id) throw new Error("No se encontró tu id de usuario.");
-      await updateUserContact(user.id, payload);
+    mutationFn: async (payload: {
+      email?: string;
+      cedula?: string | null;
+      celular?: string | null;
+    }) => {
+      await updateMyContact(payload);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["me"] });

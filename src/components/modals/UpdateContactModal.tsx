@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { X, Mail, IdCard, Phone } from "lucide-react";
+import { toast } from "sonner";
 
 const TenDigits = /^\d{10}$/;
 
@@ -57,7 +58,7 @@ export default function UpdateContactModal({
     formState: { errors, isSubmitting, isValid },
   } = useForm<UpdateContactInput>({
     resolver: zodResolver(FormSchema),
-    mode: "onChange", // valida en caliente
+    mode: "onChange",
     defaultValues: {
       email: initial.email ?? "",
       cedula: initial.cedula ?? "",
@@ -65,7 +66,6 @@ export default function UpdateContactModal({
     },
   });
 
-  // Resetear valores SOLO al abrir (evita que se borre mientras escribes)
   useEffect(() => {
     if (!open) return;
     reset({
@@ -75,7 +75,6 @@ export default function UpdateContactModal({
     });
   }, [open, initial.email, initial.cedula, initial.celular, reset]);
 
-  // Cerrar con ESC
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -83,19 +82,16 @@ export default function UpdateContactModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  // Cerrar haciendo click en el backdrop
   const onBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === backdropRef.current) onClose();
   };
 
-  // Valores actuales del form
   const emailVal = watch("email");
   const cedulaVal = watch("cedula");
   const celularVal = watch("celular");
 
   const trimOrNull = (v?: string) => (v && v.trim() ? v.trim() : null);
 
-  // Detectar si hay cambios REALES (para habilitar "Guardar")
   const hasChanges = useMemo(() => {
     const eChanged = (emailVal ?? "").trim() !== (initial.email ?? "");
     const ceduChanged = trimOrNull(cedulaVal) !== (initial.cedula ?? null);
@@ -130,7 +126,6 @@ export default function UpdateContactModal({
     if ((initial.celular ?? null) !== nextCelular)
       changes.celular = nextCelular;
 
-    // Si no hubo cambios, cerrar sin llamar onSubmit
     if (Object.keys(changes).length === 0) {
       onClose();
       return;
@@ -138,11 +133,13 @@ export default function UpdateContactModal({
 
     try {
       await onSubmit(changes);
+      toast.success("Datos actualizados correctamente ✅");
       onClose();
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "No se pudo actualizar tus datos";
       setServerError(message);
+      toast.error(message);
     }
   });
 
