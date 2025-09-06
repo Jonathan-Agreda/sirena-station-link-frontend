@@ -1,3 +1,4 @@
+// src/services/auth.ts
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 
@@ -37,12 +38,22 @@ export type MeResponse = {
   username: string;
   email?: string;
   role: Role;
+
+  // Datos personales
   firstName?: string | null;
   lastName?: string | null;
+
+  // Dirección
   etapa?: string | null;
   manzana?: string | null;
   villa?: string | null;
+
+  // ➕ NUEVO: contacto
+  cedula?: string | null;
+  celular?: string | null;
+
   alicuota?: boolean;
+
   urbanizacion: {
     id: string;
     name: string;
@@ -50,25 +61,36 @@ export type MeResponse = {
     createdAt: string;
     updatedAt: string;
   } | null;
+
   sirens: Siren[];
 };
 
-// CAMBIO 1: Se crea un tipo para el objeto "raw" que viene del backend.
-// Esto nos permite reemplazar `any` de forma segura.
+// Objeto crudo que puede venir del backend (role o roles[], alias en nombres, etc.)
 type RawUser = {
   id: string;
   username: string;
   email?: string;
+
   role?: string;
   roles?: string[];
+
   firstName?: string | null;
   firstname?: string | null;
   lastName?: string | null;
   lastname?: string | null;
+
   etapa?: string | null;
   manzana?: string | null;
   villa?: string | null;
+
+  // ➕ posibles nombres para contacto
+  cedula?: string | null;
+  celular?: string | null;
+  phone?: string | null;
+  telefono?: string | null;
+
   alicuota?: boolean;
+
   urbanizacion?: MeResponse["urbanizacion"];
   sirens?: Siren[];
 };
@@ -83,7 +105,6 @@ export function homeFor(role: Role): "/dashboard" | "/sirenastation" {
 }
 
 // Normaliza cualquier shape de user que venga del backend (roles[] o role)
-// CAMBIO 2: Se usa el nuevo tipo `RawUser` en lugar de `any`.
 function normalizeUser(raw: RawUser): MeResponse {
   const roleFromArray =
     Array.isArray(raw?.roles) &&
@@ -93,17 +114,32 @@ function normalizeUser(raw: RawUser): MeResponse {
 
   const role: Role = (raw?.role || roleFromArray || "RESIDENTE") as Role;
 
+  // Utilidades de saneado suaves (sin romper datos)
+  const toNullableString = (v: unknown) =>
+    v === null || v === undefined ? null : String(v);
+
   return {
     id: raw.id,
     username: raw.username,
     email: raw.email ?? undefined,
     role,
+
     firstName: raw.firstName ?? raw.firstname ?? null,
     lastName: raw.lastName ?? raw.lastname ?? null,
+
     etapa: raw.etapa ?? null,
     manzana: raw.manzana ?? null,
     villa: raw.villa ?? null,
+
+    // ➕ contacto
+    cedula: toNullableString(raw.cedula),
+    celular:
+      toNullableString(raw.celular) ??
+      toNullableString(raw.phone) ??
+      toNullableString(raw.telefono),
+
     alicuota: raw.alicuota !== undefined ? raw.alicuota : true,
+
     urbanizacion: raw.urbanizacion ?? null,
     sirens: Array.isArray(raw.sirens) ? raw.sirens : [],
   };
@@ -119,7 +155,7 @@ export async function loginWeb(usernameOrEmail: string, password: string) {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
-  const user = normalizeUser(meRes.data);
+  const user = normalizeUser(meRes.data as unknown as RawUser);
   useAuthStore.getState().setAuth(user, accessToken);
 
   return { accessToken, user };
@@ -140,7 +176,7 @@ export async function fetchMe(): Promise<MeResponse> {
   const res = await api.get<MeResponse>("/residents/me", {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  return normalizeUser(res.data);
+  return normalizeUser(res.data as unknown as RawUser);
 }
 
 /* ------------------ NUEVO: flujo primer login ------------------ */
@@ -173,7 +209,7 @@ export async function completeFirstLoginWeb(
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
-  const user = normalizeUser(meRes.data);
+  const user = normalizeUser(meRes.data as unknown as RawUser);
   useAuthStore.getState().setAuth(user, accessToken);
 
   return { accessToken, user };

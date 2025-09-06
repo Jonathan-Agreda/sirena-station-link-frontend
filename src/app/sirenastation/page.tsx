@@ -1,8 +1,9 @@
+// src/app/sirenastation/page.tsx
 "use client";
 
 import RoleGate from "@/components/RoleGate";
-import { useQuery } from "@tanstack/react-query";
-import { fetchMe, MeResponse } from "@/services/auth";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { fetchMe, MeResponse, type Role, type Siren } from "@/services/auth";
 import { Skeleton } from "@/components/ui/Skeleton";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -10,16 +11,17 @@ import { LogoAnimated } from "@/components/LogoAnimated";
 import { useSirenSocket } from "@/hook/useSirenSocket";
 import { toggleSiren } from "@/services/sirens";
 import { useState, useEffect } from "react";
-import type { Role } from "@/services/auth";
 import { useSirenTimerStore } from "@/store/sirenTimer";
+import UpdateContactModal from "@/components/modals/UpdateContactModal";
+import { updateUserContact } from "@/services/users";
 
-// 🔹 Tipo extendido para lo que puede traer el socket
+/* ---------- Tipo extendido para lo que puede traer el socket ---------- */
 type SirenState = {
   deviceId: string;
   online: boolean;
   siren: "ON" | "OFF";
   updatedAt?: string; // ISO date
-  autoOffAt?: string; // ISO date (opcional futuro)
+  autoOffAt?: string; // ISO date (opcional)
 };
 
 export default function SirenaStationPage() {
@@ -28,29 +30,45 @@ export default function SirenaStationPage() {
     queryFn: fetchMe,
   });
 
-  const [selectedSirenId, setSelectedSirenId] = useState<string | null>(null);
+  const qc = useQueryClient();
 
+  const [selectedSirenId, setSelectedSirenId] = useState<string | null>(null);
+  const [openModal, setOpenModal] = useState(false);
+
+  // Seleccionar por defecto la primera sirena del usuario
   useEffect(() => {
-    if (user?.sirens?.length) {
-      setSelectedSirenId(user.sirens[0].deviceId);
-    }
+    if (user?.sirens?.length) setSelectedSirenId(user.sirens[0].deviceId);
   }, [user]);
 
-  // ⬅️ casteamos el state recibido al tipo extendido
+  // Mutación: actualizar email / cédula / celular
+  const contactMutation = useMutation({
+    mutationFn: async (payload: {
+      email: string;
+      cedula: string | null;
+      celular: string | null;
+    }) => {
+      if (!user?.id) throw new Error("No se encontró tu id de usuario.");
+      await updateUserContact(user.id, payload);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["me"] });
+    },
+  });
+
+  // Estado en tiempo real de la sirena seleccionada
   const { state, countdown } = useSirenSocket(selectedSirenId || "") as {
     state: SirenState | undefined;
     countdown: number;
   };
 
-  // ====== Persistencia del contador ======
-  const AUTO_OFF_MS = Number(process.env.NEXT_PUBLIC_SIRENA_AUTO_OFF) || 300000; // ms
+  /* =================== Persistencia del contador (auto-off) =================== */
+  const AUTO_OFF_MS = Number(process.env.NEXT_PUBLIC_SIRENA_AUTO_OFF) || 300000; // 5 min
 
   const timers = useSirenTimerStore((s) => s.timers);
   const setTimer = useSirenTimerStore((s) => s.setTimer);
   const clearTimer = useSirenTimerStore((s) => s.clearTimer);
   const getTimer = useSirenTimerStore((s) => s.getTimer);
 
-  // Al recibir estado, crear/actualizar/limpiar timer persistente
   useEffect(() => {
     if (!selectedSirenId || !state) return;
 
@@ -59,12 +77,9 @@ export default function SirenaStationPage() {
       const existing = getTimer(selectedSirenId);
       if (existing && existing.expiresAt > now) return;
 
-      // Preferir autoOffAt si lo trae el backend
       const autoOffAt = state.autoOffAt
         ? new Date(state.autoOffAt).getTime()
         : undefined;
-
-      // Si no, usar updatedAt (+ AUTO_OFF_MS)
       const updatedAtMs = state.updatedAt
         ? new Date(state.updatedAt).getTime()
         : undefined;
@@ -75,7 +90,6 @@ export default function SirenaStationPage() {
 
       setTimer(selectedSirenId, expiresAt, Math.floor(AUTO_OFF_MS / 1000));
     } else {
-      // OFF -> limpiar timer
       clearTimer(selectedSirenId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -96,7 +110,7 @@ export default function SirenaStationPage() {
         )
       : 0;
 
-  // Mostrar primero el persistente; si no existe, usa el countdown del hook
+  // Mostrar persistido; si no existe, usa el del socket
   const displayCountdown =
     persistedRemainingSec > 0 ? persistedRemainingSec : countdown;
 
@@ -105,11 +119,12 @@ export default function SirenaStationPage() {
     const action = state.siren === "ON" ? "OFF" : "ON";
     try {
       await toggleSiren(state.deviceId, action);
-      if (action === "OFF" && selectedSirenId) {
-        clearTimer(selectedSirenId);
-      }
+      if (action === "OFF" && selectedSirenId) clearTimer(selectedSirenId);
     } catch (err) {
-      console.error("Error enviando comando:", err);
+      // Log en desarrollo; no rompe en producción
+      if (process.env.NODE_ENV !== "production") {
+        console.error("Error enviando comando:", err);
+      }
     }
   }
 
@@ -124,24 +139,18 @@ export default function SirenaStationPage() {
   }
 
   /* ================== Imagen de urbanización ================== */
-  // nombre base sin espacios, minúsculas
   const baseUrbanName =
     user?.urbanizacion?.name?.trim().toLowerCase().replace(/\s+/g, "") ||
     "savali";
-
-  // cache-bust opcional (si cambias imagen con mismo nombre)
   const ASSET_VER = process.env.NEXT_PUBLIC_ASSET_VERSION ?? "1";
-
-  // estado de src para permitir fallback de extensión
   const [imgSrc, setImgSrc] = useState<string>(
     `/urbanitation/${baseUrbanName}.jpg?v=${ASSET_VER}`
   );
 
-  // si cambia la urbanización, reiniciar a .jpg
   useEffect(() => {
     setImgSrc(`/urbanitation/${baseUrbanName}.jpg?v=${ASSET_VER}`);
   }, [baseUrbanName, ASSET_VER]);
-  /* ============================================================ */
+  /* ========================================================================== */
 
   return (
     <RoleGate
@@ -180,7 +189,7 @@ export default function SirenaStationPage() {
             <div className="grid gap-6 md:grid-cols-[1.2fr_1fr]">
               {/* Columna izquierda (Perfil + Sirena) */}
               <div className="grid gap-6">
-                {/* ─── Control Sirena: PRIMERO EN MÓVIL ───────────────────── */}
+                {/* ─── Control Sirena ─── */}
                 <div
                   className={[
                     "order-1 md:order-2",
@@ -209,7 +218,7 @@ export default function SirenaStationPage() {
                           onChange={(e) => setSelectedSirenId(e.target.value)}
                           className="order-2 md:order-1 mb-0 md:mb-3 rounded-lg border px-3 py-2 text-sm bg-background w-full sm:w-auto"
                         >
-                          {user.sirens.map((s) => (
+                          {user.sirens.map((s: Siren) => (
                             <option key={s.deviceId} value={s.deviceId}>
                               {s.deviceId}
                             </option>
@@ -265,16 +274,29 @@ export default function SirenaStationPage() {
                   )}
                 </div>
 
-                {/* ─── Perfil: SEGUNDO EN MÓVIL, PRIMERO EN DESKTOP ───────── */}
-                <div className="order-2 md:order-1 rounded-xl border p-4 grid gap-2">
-                  <p className="text-sm opacity-70">Tu perfil</p>
+                {/* ─── Perfil ─── */}
+                <div className="order-2 md:order-1 rounded-xl border p-4 grid gap-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm opacity-70">Tu perfil</p>
+                    <button
+                      onClick={() => setOpenModal(true)}
+                      className="rounded-lg border px-3 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                      title="Actualizar email, cédula y celular"
+                    >
+                      Actualizar datos
+                    </button>
+                  </div>
+
                   <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
                     <div className="grid grid-cols-[90px_1fr] gap-2">
                       <dt className="opacity-60">Usuario</dt>
                       <dd className="font-medium break-words">
-                        {user.firstName + " " + user.lastName || "—"}
+                        {user.firstName && user.lastName
+                          ? `${user.firstName} ${user.lastName}`
+                          : user.username || "—"}
                       </dd>
                     </div>
+
                     <div className="grid grid-cols-[90px_1fr] gap-2">
                       <dt className="opacity-60">Email</dt>
                       <dd
@@ -284,21 +306,35 @@ export default function SirenaStationPage() {
                         {user.email || "—"}
                       </dd>
                     </div>
+
                     <div className="grid grid-cols-[90px_1fr] gap-2">
                       <dt className="opacity-60">Etapa</dt>
                       <dd className="font-medium">{user.etapa || "—"}</dd>
                     </div>
+
                     <div className="grid grid-cols-[90px_1fr] gap-2">
                       <dt className="opacity-60">Manzana</dt>
                       <dd className="font-medium">{user.manzana || "—"}</dd>
                     </div>
+
                     <div className="grid grid-cols-[90px_1fr] gap-2">
                       <dt className="opacity-60">Villa</dt>
                       <dd className="font-medium">{user.villa || "—"}</dd>
                     </div>
+
                     <div className="grid grid-cols-[90px_1fr] gap-2">
                       <dt className="opacity-60">Rol</dt>
                       <dd className="font-medium">{user.role}</dd>
+                    </div>
+
+                    <div className="grid grid-cols-[90px_1fr] gap-2">
+                      <dt className="opacity-60">Cédula</dt>
+                      <dd className="font-medium">{user.cedula || "—"}</dd>
+                    </div>
+
+                    <div className="grid grid-cols-[90px_1fr] gap-2">
+                      <dt className="opacity-60">Celular</dt>
+                      <dd className="font-medium">{user.celular || "—"}</dd>
                     </div>
                   </dl>
                 </div>
@@ -314,13 +350,11 @@ export default function SirenaStationPage() {
                   className="h-56 sm:h-64 md:h-full w-full object-cover"
                   priority
                   onError={() => {
-                    // si falla .jpg → probar .jpeg
                     if (imgSrc.includes(".jpg")) {
                       setImgSrc(
                         `/urbanitation/${baseUrbanName}.jpeg?v=${ASSET_VER}`
                       );
                     } else if (!imgSrc.includes("/savali.")) {
-                      // si también falla .jpeg → fallback global
                       setImgSrc(`/urbanitation/savali.jpg?v=${ASSET_VER}`);
                     }
                   }}
@@ -334,6 +368,18 @@ export default function SirenaStationPage() {
                 </div>
               </div>
             </div>
+
+            {/* Modal de actualización de contacto */}
+            <UpdateContactModal
+              open={openModal}
+              onClose={() => setOpenModal(false)}
+              initial={{
+                email: user.email ?? "",
+                cedula: user.cedula ?? null,
+                celular: user.celular ?? null,
+              }}
+              onSubmit={(p) => contactMutation.mutateAsync(p)}
+            />
           </>
         ) : null}
       </section>
