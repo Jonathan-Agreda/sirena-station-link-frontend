@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { env } from "@/env";
 import { useTheme } from "next-themes";
-import { Moon, Sun, User } from "lucide-react"; // 👈 añadimos User
-import { useEffect, useState } from "react";
+import { Moon, Sun, User, KeyRound } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/store/auth";
 import { usePathname } from "next/navigation";
 import LogoutButton from "./LogoutButton";
 import { Logo } from "@/components/Logo";
+import ManualChangePasswordModal from "@/components/ManualChangePasswordModal";
 
 export default function Navbar() {
   const { resolvedTheme, setTheme } = useTheme();
@@ -16,12 +17,28 @@ export default function Navbar() {
   const { isAuthenticated, user } = useAuthStore();
   const pathname = usePathname();
 
-  useEffect(() => setMounted(true), []);
+  // --- nuevo: estado para menú y modal
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [changePassOpen, setChangePassOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
+  useEffect(() => setMounted(true), []);
   const isDark = mounted && resolvedTheme === "dark";
   const toggle = () => setTheme(isDark ? "light" : "dark");
 
   const isStaff = ["SUPERADMIN", "ADMIN", "GUARDIA"].includes(user?.role ?? "");
+
+  // cerrar menú al click fuera
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!menuRef.current) return;
+      if (!menuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   return (
     <>
@@ -76,16 +93,38 @@ export default function Navbar() {
                   </Link>
                 )}
 
-                {/* Username pill con ícono 👤 */}
-                <span
-                  title={user.username}
-                  className="hidden sm:inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs sm:text-sm font-medium border-[color-mix(in_oklab,var(--brand-primary),transparent_60%)] bg-[color-mix(in_oklab,transparent,var(--brand-primary)_12%)] text-[color-mix(in_oklab,var(--brand-primary),black_30%)] dark:text-[color-mix(in_oklab,var(--brand-primary),white_20%)] transition"
-                >
-                  <User size={14} className="opacity-70" />
-                  {user.username}
-                </span>
+                {/* --- Username + menú --- */}
+                <div className="relative" ref={menuRef}>
+                  <button
+                    onClick={() => setUserMenuOpen((v) => !v)}
+                    title={user.username}
+                    className="hidden cursor-pointer sm:inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs sm:text-sm font-medium border-[color-mix(in_oklab,var(--brand-primary),transparent_60%)] bg-[color-mix(in_oklab,transparent,var(--brand-primary)_12%)] text-[color-mix(in_oklab,var(--brand-primary),black_30%)] dark:text-[color-mix(in_oklab,var(--brand-primary),white_20%)] transition hover:opacity-100"
+                  >
+                    <User size={14} className="opacity-70" />
+                    {user.username}
+                  </button>
 
-                <LogoutButton />
+                  {userMenuOpen && (
+                    <div className="absolute right-0 mt-2 min-w-56 rounded-xl border border-white/10 bg-white/95 dark:bg-neutral-900/95 shadow-xl ring-1 ring-white/10 p-1 z-50">
+                      <button
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          setChangePassOpen(true);
+                        }}
+                        className="w-full cursor-pointer text-left flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-[color-mix(in_oklab,transparent,black_10%)] dark:hover:bg-[color-mix(in_oklab,transparent,white_10%)]"
+                      >
+                        <KeyRound size={16} />
+                        Cambiar contraseña
+                      </button>
+
+                      <div className="my-1 h-px bg-white/10" />
+
+                      <div className="px-3 pb-1">
+                        <LogoutButton />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </>
             ) : (
               <Link
@@ -116,7 +155,13 @@ export default function Navbar() {
         </div>
       </header>
 
-      {/* Estilos de animación */}
+      {/* Modal manual montado aquí */}
+      <ManualChangePasswordModal
+        open={changePassOpen}
+        onClose={() => setChangePassOpen(false)}
+      />
+
+      {/* Animación del logo (tal como la tenías) */}
       <style jsx global>{`
         .logo-navbar-animated .wave1,
         .logo-navbar-animated .wave2 {
