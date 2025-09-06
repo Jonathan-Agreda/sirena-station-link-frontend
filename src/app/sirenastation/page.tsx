@@ -24,6 +24,12 @@ type SirenState = {
   autoOffAt?: string; // ISO date (opcional)
 };
 
+type ContactPatch = Partial<{
+  email: string;
+  cedula: string | null;
+  celular: string | null;
+}>;
+
 export default function SirenaStationPage() {
   const { data: user, isLoading } = useQuery<MeResponse>({
     queryKey: ["me"],
@@ -50,13 +56,9 @@ export default function SirenaStationPage() {
     [user?.email, user?.cedula, user?.celular]
   );
 
-  // Mutación: actualizar email / cédula / celular
+  // Mutación: actualizar email / cédula / celular (acepta SOLO lo que cambió)
   const contactMutation = useMutation({
-    mutationFn: async (payload: {
-      email: string;
-      cedula: string | null;
-      celular: string | null;
-    }) => {
+    mutationFn: async (payload: ContactPatch) => {
       if (!user?.id) throw new Error("No se encontró tu id de usuario.");
       await updateUserContact(user.id, payload);
     },
@@ -131,7 +133,7 @@ export default function SirenaStationPage() {
       await toggleSiren(state.deviceId, action);
       if (action === "OFF" && selectedSirenId) clearTimer(selectedSirenId);
     } catch {
-      // noop: error al enviar comando (evita warning por console)
+      // noop: evitamos logs en consola
     }
   }
 
@@ -287,7 +289,7 @@ export default function SirenaStationPage() {
                     <p className="text-sm opacity-70">Tu perfil</p>
                     <button
                       onClick={() => setOpenModal(true)}
-                      className="rounded-lg border px-3 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                      className="cursor-pointer rounded-lg border px-3 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
                       title="Actualizar email, cédula y celular"
                     >
                       Actualizar datos
@@ -381,7 +383,9 @@ export default function SirenaStationPage() {
               open={openModal}
               onClose={() => setOpenModal(false)}
               initial={initialContact}
-              onSubmit={(p) => contactMutation.mutateAsync(p)}
+              onSubmit={async (p) => {
+                await contactMutation.mutateAsync(p as ContactPatch);
+              }}
             />
           </>
         ) : null}

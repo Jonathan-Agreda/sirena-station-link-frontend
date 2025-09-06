@@ -1,6 +1,7 @@
+// src/components/modals/UpdateContactModal.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -30,11 +31,13 @@ type Props = {
   open: boolean;
   onClose: () => void;
   initial: { email: string; cedula?: string | null; celular?: string | null };
-  onSubmit: (data: {
-    email: string;
-    cedula: string | null;
-    celular: string | null;
-  }) => Promise<void>;
+  onSubmit: (
+    data: Partial<{
+      email: string;
+      cedula: string | null;
+      celular: string | null;
+    }>
+  ) => Promise<void>;
 };
 
 export default function UpdateContactModal({
@@ -50,9 +53,11 @@ export default function UpdateContactModal({
     register,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting, isDirty },
+    watch,
+    formState: { errors, isSubmitting, isValid },
   } = useForm<UpdateContactInput>({
     resolver: zodResolver(FormSchema),
+    mode: "onChange", // valida en caliente
     defaultValues: {
       email: initial.email ?? "",
       cedula: initial.cedula ?? "",
@@ -60,7 +65,7 @@ export default function UpdateContactModal({
     },
   });
 
-  // 🔒 Resetea SOLO al abrir (o si cambian realmente los escalares)
+  // Resetear valores SOLO al abrir (evita que se borre mientras escribes)
   useEffect(() => {
     if (!open) return;
     reset({
@@ -68,9 +73,9 @@ export default function UpdateContactModal({
       cedula: initial.cedula ?? "",
       celular: initial.celular ?? "",
     });
-  }, [open, reset, initial.email, initial.cedula, initial.celular]);
+  }, [open, initial.email, initial.cedula, initial.celular, reset]);
 
-  // Escape cierra modal
+  // Cerrar con ESC
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -78,28 +83,66 @@ export default function UpdateContactModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  // Cerrar haciendo click en el backdrop
   const onBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === backdropRef.current) onClose();
   };
 
+  // Valores actuales del form
+  const emailVal = watch("email");
+  const cedulaVal = watch("cedula");
+  const celularVal = watch("celular");
+
+  const trimOrNull = (v?: string) => (v && v.trim() ? v.trim() : null);
+
+  // Detectar si hay cambios REALES (para habilitar "Guardar")
+  const hasChanges = useMemo(() => {
+    const eChanged = (emailVal ?? "").trim() !== (initial.email ?? "");
+    const ceduChanged = trimOrNull(cedulaVal) !== (initial.cedula ?? null);
+    const celuChanged = trimOrNull(celularVal) !== (initial.celular ?? null);
+    return eChanged || ceduChanged || celuChanged;
+  }, [
+    emailVal,
+    cedulaVal,
+    celularVal,
+    initial.email,
+    initial.cedula,
+    initial.celular,
+  ]);
+
+  const canSave = isValid && hasChanges && !isSubmitting;
+
   const submit = handleSubmit(async (values) => {
     setServerError(null);
-    const payload = {
-      email: values.email.trim(),
-      cedula: values.cedula?.trim() ? values.cedula.trim() : null,
-      celular: values.celular?.trim() ? values.celular.trim() : null,
-    };
+
+    const nextEmail = values.email.trim();
+    const nextCedula = trimOrNull(values.cedula);
+    const nextCelular = trimOrNull(values.celular);
+
+    const changes: Partial<{
+      email: string;
+      cedula: string | null;
+      celular: string | null;
+    }> = {};
+
+    if (nextEmail !== (initial.email ?? "")) changes.email = nextEmail;
+    if ((initial.cedula ?? null) !== nextCedula) changes.cedula = nextCedula;
+    if ((initial.celular ?? null) !== nextCelular)
+      changes.celular = nextCelular;
+
+    // Si no hubo cambios, cerrar sin llamar onSubmit
+    if (Object.keys(changes).length === 0) {
+      onClose();
+      return;
+    }
+
     try {
-      await onSubmit(payload);
+      await onSubmit(changes);
       onClose();
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setServerError(err.message);
-      } else if (typeof err === "object" && err && "message" in err) {
-        setServerError(String((err as { message?: string }).message));
-      } else {
-        setServerError("No se pudo actualizar tus datos");
-      }
+      const message =
+        err instanceof Error ? err.message : "No se pudo actualizar tus datos";
+      setServerError(message);
     }
   });
 
@@ -109,7 +152,7 @@ export default function UpdateContactModal({
     <div
       ref={backdropRef}
       onClick={onBackdropClick}
-      className="fixed inset-0 z-50 grid place-items-center bg-black/70 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 grid place-items-center bg-black/65 backdrop-blur-sm p-4"
       role="dialog"
       aria-modal="true"
       aria-label="Actualizar datos de contacto"
@@ -121,9 +164,11 @@ export default function UpdateContactModal({
             Actualizar datos
           </h3>
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-md p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+            className="cursor-pointer rounded-md p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800"
             aria-label="Cerrar"
+            title="Cerrar"
           >
             <X size={18} />
           </button>
@@ -136,6 +181,7 @@ export default function UpdateContactModal({
             <strong>celular</strong>.
           </p>
 
+          {/* Email */}
           <div>
             <label className="text-sm opacity-70 flex items-center gap-2">
               <Mail size={16} /> Email
@@ -145,7 +191,7 @@ export default function UpdateContactModal({
               autoComplete="email"
               autoFocus
               {...register("email")}
-              className="mt-1 w-full rounded-lg border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[--brand-primary]"
+              className="mt-1 w-full rounded-lg border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-[--brand-primary]"
             />
             {errors.email && (
               <p className="mt-1 text-xs text-red-600">
@@ -154,6 +200,7 @@ export default function UpdateContactModal({
             )}
           </div>
 
+          {/* Cédula & Celular */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-sm opacity-70 flex items-center gap-2">
@@ -170,7 +217,7 @@ export default function UpdateContactModal({
                       .slice(0, 10);
                   },
                 })}
-                className="mt-1 w-full rounded-lg border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[--brand-primary]"
+                className="mt-1 w-full rounded-lg border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-[--brand-primary]"
               />
               {errors.cedula && (
                 <p className="mt-1 text-xs text-red-600">
@@ -194,7 +241,7 @@ export default function UpdateContactModal({
                       .slice(0, 10);
                   },
                 })}
-                className="mt-1 w-full rounded-lg border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[--brand-primary]"
+                className="mt-1 w-full rounded-lg border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-[--brand-primary]"
               />
               {errors.celular && (
                 <p className="mt-1 text-xs text-red-600">
@@ -215,14 +262,19 @@ export default function UpdateContactModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border px-4 py-2 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              className="cursor-pointer rounded-lg border px-4 py-2 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !isDirty}
-              className="rounded-lg bg-[--brand-primary] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 hover:brightness-110"
+              disabled={!canSave}
+              className={`cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold text-white transition
+                ${
+                  canSave
+                    ? "bg-[--brand-primary] hover:brightness-110"
+                    : "bg-[--brand-primary]/60"
+                }`}
             >
               {isSubmitting ? "Guardando…" : "Guardar"}
             </button>
