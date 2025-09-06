@@ -1,3 +1,4 @@
+// src/components/modals/UpdateContactModal.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -7,21 +8,27 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { X, Mail, IdCard, Phone } from "lucide-react";
 import { toast } from "sonner";
 
+/* ================== Validaciones ================== */
 const TenDigits = /^\d{10}$/;
 
 const FormSchema = z.object({
-  email: z.string().min(1, "Requerido").email("Email no válido").max(120),
+  email: z
+    .string()
+    .min(1, "Requerido")
+    .email("Email no válido")
+    .max(120)
+    .transform((val) => val.trim()),
+
   cedula: z
-    .union([
-      z.literal(""),
-      z.string().regex(TenDigits, "Debe tener 10 dígitos"),
-    ])
+    .string()
+    .regex(TenDigits, "Debe tener 10 dígitos")
+    .nullable()
     .optional(),
+
   celular: z
-    .union([
-      z.literal(""),
-      z.string().regex(TenDigits, "Debe tener 10 dígitos"),
-    ])
+    .string()
+    .regex(TenDigits, "Debe tener 10 dígitos")
+    .nullable()
     .optional(),
 });
 
@@ -40,6 +47,7 @@ type Props = {
   ) => Promise<void>;
 };
 
+/* ================== Componente ================== */
 export default function UpdateContactModal({
   open,
   onClose,
@@ -57,23 +65,25 @@ export default function UpdateContactModal({
     formState: { errors, isSubmitting, isValid },
   } = useForm<UpdateContactInput>({
     resolver: zodResolver(FormSchema),
-    mode: "onChange",
+    mode: "onChange", // valida en vivo
     defaultValues: {
       email: initial.email ?? "",
-      cedula: initial.cedula ?? "",
-      celular: initial.celular ?? "",
+      cedula: initial.cedula ?? null,
+      celular: initial.celular ?? null,
     },
   });
 
+  /* Resetear valores SOLO al abrir */
   useEffect(() => {
     if (!open) return;
     reset({
       email: initial.email ?? "",
-      cedula: initial.cedula ?? "",
-      celular: initial.celular ?? "",
+      cedula: initial.cedula ?? null,
+      celular: initial.celular ?? null,
     });
   }, [open, initial.email, initial.cedula, initial.celular, reset]);
 
+  /* Cerrar con ESC */
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -81,15 +91,19 @@ export default function UpdateContactModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  /* Cerrar haciendo click en el backdrop */
   const onBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === backdropRef.current) onClose();
   };
 
+  /* Watch valores actuales */
   const emailVal = watch("email");
   const cedulaVal = watch("cedula");
   const celularVal = watch("celular");
-  const trimOrNull = (v?: string) => (v && v.trim() ? v.trim() : null);
 
+  const trimOrNull = (v?: string | null) => (v && v.trim() ? v.trim() : null);
+
+  /* Detectar si hubo cambios */
   const hasChanges = useMemo(() => {
     const eChanged = (emailVal ?? "").trim() !== (initial.email ?? "");
     const ceduChanged = trimOrNull(cedulaVal) !== (initial.cedula ?? null);
@@ -106,27 +120,19 @@ export default function UpdateContactModal({
 
   const canSave = isValid && hasChanges && !isSubmitting;
 
+  /* Submit */
   const submit = handleSubmit(async (values) => {
     setServerError(null);
-
-    const nextEmail = values.email.trim();
-    const nextCedula = trimOrNull(values.cedula);
-    const nextCelular = trimOrNull(values.celular);
 
     const changes: Partial<{
       email: string;
       cedula: string | null;
       celular: string | null;
-    }> = {};
-    if (nextEmail !== (initial.email ?? "")) changes.email = nextEmail;
-    if ((initial.cedula ?? null) !== nextCedula) changes.cedula = nextCedula;
-    if ((initial.celular ?? null) !== nextCelular)
-      changes.celular = nextCelular;
-
-    if (Object.keys(changes).length === 0) {
-      onClose();
-      return;
-    }
+    }> = {
+      email: values.email.trim(),
+      cedula: trimOrNull(values.cedula),
+      celular: trimOrNull(values.celular),
+    };
 
     try {
       await onSubmit(changes);
@@ -204,13 +210,7 @@ export default function UpdateContactModal({
                 type="tel"
                 inputMode="numeric"
                 placeholder="10 dígitos (opcional)"
-                {...register("cedula", {
-                  onChange: (e) => {
-                    e.target.value = e.target.value
-                      .replace(/\D/g, "")
-                      .slice(0, 10);
-                  },
-                })}
+                {...register("cedula")}
                 className="mt-1 w-full rounded-lg border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-[--brand-primary]"
               />
               {errors.cedula && (
@@ -228,13 +228,7 @@ export default function UpdateContactModal({
                 type="tel"
                 inputMode="numeric"
                 placeholder="10 dígitos (opcional)"
-                {...register("celular", {
-                  onChange: (e) => {
-                    e.target.value = e.target.value
-                      .replace(/\D/g, "")
-                      .slice(0, 10);
-                  },
-                })}
+                {...register("celular")}
                 className="mt-1 w-full rounded-lg border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-[--brand-primary]"
               />
               {errors.celular && (
@@ -265,11 +259,6 @@ export default function UpdateContactModal({
               type="submit"
               disabled={!canSave}
               aria-disabled={!canSave}
-              title={
-                canSave
-                  ? "Guardar cambios"
-                  : "Completa cambios válidos para guardar"
-              }
               className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--brand-primary]
                 ${
