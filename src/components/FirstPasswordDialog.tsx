@@ -40,9 +40,7 @@ export default function FirstPasswordDialog({
   }, [usernameOrEmail]);
 
   useEffect(() => {
-    if (open) {
-      setTimeout(() => inputRef.current?.focus(), 50);
-    }
+    if (open) setTimeout(() => inputRef.current?.focus(), 50);
   }, [open]);
 
   const strength = useMemo(() => {
@@ -60,24 +58,16 @@ export default function FirstPasswordDialog({
     newPass === confirm;
 
   const submit = useCallback(async () => {
-    if (!userField) {
-      toast.error("Ingresa tu usuario o email");
-      return;
-    }
-    if (!currentPassword) {
-      toast.error(
+    if (!userField) return toast.error("Ingresa tu usuario o email");
+    if (!currentPassword)
+      return toast.error(
         "No tengo tu contraseña actual. Vuelve a abrir el diálogo desde el login."
       );
-      return;
-    }
-    if (!newPass || newPass.length < 6) {
-      toast.error("La nueva contraseña debe tener al menos 6 caracteres");
-      return;
-    }
-    if (newPass !== confirm) {
-      toast.error("Las contraseñas no coinciden");
-      return;
-    }
+    if (!newPass || newPass.length < 6)
+      return toast.error(
+        "La nueva contraseña debe tener al menos 6 caracteres"
+      );
+    if (newPass !== confirm) return toast.error("Las contraseñas no coinciden");
 
     try {
       setLoading(true);
@@ -92,11 +82,8 @@ export default function FirstPasswordDialog({
       else router.replace(homeFor(user.role));
     } catch (e: unknown) {
       let msg = "No se pudo completar el primer inicio de sesión";
-      if (isAxiosError(e)) {
-        msg = e.response?.data?.message || e.message;
-      } else if (e instanceof Error) {
-        msg = e.message;
-      }
+      if (isAxiosError(e)) msg = e.response?.data?.message || e.message;
+      else if (e instanceof Error) msg = e.message;
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -111,7 +98,6 @@ export default function FirstPasswordDialog({
     router,
   ]);
 
-  // ESC y Enter
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && open && !loading) onClose();
@@ -177,7 +163,8 @@ export default function FirstPasswordDialog({
                 <input
                   ref={inputRef}
                   type="text"
-                  className="w-full rounded-xl border border-neutral-300 dark:border-white/10 bg-white dark:bg-neutral-900 px-3 py-2 outline-none focus:ring-2 focus:ring-[--brand-primary]"
+                  autoComplete="username"
+                  className="w-full rounded-xl border border-neutral-300 dark:border-white/10 bg-white dark:bg-neutral-900 px-3 py-2 outline-none focus:ring-2 focus:ring-[--brand-primary] text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
                   placeholder="usuario@example.com"
                   value={userField}
                   onChange={(e) => setUserField(e.target.value)}
@@ -192,7 +179,8 @@ export default function FirstPasswordDialog({
                 <div className="relative">
                   <input
                     type={showNew ? "text" : "password"}
-                    className="w-full rounded-xl border border-neutral-300 dark:border-white/10 bg-white dark:bg-neutral-900 px-3 py-2 pr-10 outline-none focus:ring-2 focus:ring-[--brand-primary]"
+                    autoComplete="new-password"
+                    className="w-full rounded-xl border border-neutral-300 dark:border-white/10 bg-white dark:bg-neutral-900 px-3 py-2 pr-10 outline-none focus:ring-2 focus:ring-[--brand-primary] text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
                     placeholder="Mínimo 6 caracteres"
                     value={newPass}
                     onChange={(e) => setNewPass(e.target.value)}
@@ -238,7 +226,8 @@ export default function FirstPasswordDialog({
                 <div className="relative">
                   <input
                     type={showConfirm ? "text" : "password"}
-                    className="w-full rounded-xl border border-neutral-300 dark:border-white/10 bg-white dark:bg-neutral-900 px-3 py-2 pr-10 outline-none focus:ring-2 focus:ring-[--brand-primary]"
+                    autoComplete="new-password"
+                    className="w-full rounded-xl border border-neutral-300 dark:border-white/10 bg-white dark:bg-neutral-900 px-3 py-2 pr-10 outline-none focus:ring-2 focus:ring-[--brand-primary] text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
                     placeholder="Repite la contraseña"
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
