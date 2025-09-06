@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { X, Mail, IdCard, Phone } from "lucide-react";
 
 const TenDigits = /^\d{10}$/;
 
@@ -59,14 +60,17 @@ export default function UpdateContactModal({
     },
   });
 
+  // 🔒 Resetea SOLO al abrir (o si cambian realmente los escalares)
   useEffect(() => {
+    if (!open) return;
     reset({
       email: initial.email ?? "",
       cedula: initial.cedula ?? "",
       celular: initial.celular ?? "",
     });
-  }, [initial, reset]);
+  }, [open, reset, initial.email, initial.cedula, initial.celular]);
 
+  // Escape cierra modal
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -105,26 +109,43 @@ export default function UpdateContactModal({
     <div
       ref={backdropRef}
       onClick={onBackdropClick}
-      className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4"
+      className="fixed inset-0 z-50 grid place-items-center bg-black/70 backdrop-blur-sm p-4"
       role="dialog"
       aria-modal="true"
       aria-label="Actualizar datos de contacto"
     >
-      <div className="w-full max-w-md rounded-2xl border bg-background p-5 shadow-lg">
-        <h3 className="text-lg font-semibold">Actualizar datos</h3>
-        <p className="text-sm opacity-80 mt-1">
-          Edita tu <strong>email</strong>, <strong>cédula</strong> y{" "}
-          <strong>celular</strong>.
-        </p>
+      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-background/95 shadow-2xl ring-1 ring-[--brand-primary]/20">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+          <h3 className="text-base sm:text-lg font-semibold">
+            Actualizar datos
+          </h3>
+          <button
+            onClick={onClose}
+            className="rounded-md p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+            aria-label="Cerrar"
+          >
+            <X size={18} />
+          </button>
+        </div>
 
-        <form onSubmit={submit} className="mt-4 grid gap-3">
+        {/* Body */}
+        <form onSubmit={submit} className="grid gap-4 px-5 py-4">
+          <p className="text-sm opacity-80">
+            Edita tu <strong>email</strong>, <strong>cédula</strong> y{" "}
+            <strong>celular</strong>.
+          </p>
+
           <div>
-            <label className="text-sm opacity-70">Email</label>
+            <label className="text-sm opacity-70 flex items-center gap-2">
+              <Mail size={16} /> Email
+            </label>
             <input
               type="email"
               autoComplete="email"
+              autoFocus
               {...register("email")}
-              className="mt-1 w-full rounded-lg border bg-background px-3 py-2"
+              className="mt-1 w-full rounded-lg border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[--brand-primary]"
             />
             {errors.email && (
               <p className="mt-1 text-xs text-red-600">
@@ -133,14 +154,23 @@ export default function UpdateContactModal({
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm opacity-70">Cédula</label>
+              <label className="text-sm opacity-70 flex items-center gap-2">
+                <IdCard size={16} /> Cédula
+              </label>
               <input
+                type="tel"
                 inputMode="numeric"
-                {...register("cedula")}
                 placeholder="10 dígitos (opcional)"
-                className="mt-1 w-full rounded-lg border bg-background px-3 py-2"
+                {...register("cedula", {
+                  onChange: (e) => {
+                    e.target.value = e.target.value
+                      .replace(/\D/g, "")
+                      .slice(0, 10);
+                  },
+                })}
+                className="mt-1 w-full rounded-lg border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[--brand-primary]"
               />
               {errors.cedula && (
                 <p className="mt-1 text-xs text-red-600">
@@ -148,13 +178,23 @@ export default function UpdateContactModal({
                 </p>
               )}
             </div>
+
             <div>
-              <label className="text-sm opacity-70">Celular</label>
+              <label className="text-sm opacity-70 flex items-center gap-2">
+                <Phone size={16} /> Celular
+              </label>
               <input
+                type="tel"
                 inputMode="numeric"
-                {...register("celular")}
                 placeholder="10 dígitos (opcional)"
-                className="mt-1 w-full rounded-lg border bg-background px-3 py-2"
+                {...register("celular", {
+                  onChange: (e) => {
+                    e.target.value = e.target.value
+                      .replace(/\D/g, "")
+                      .slice(0, 10);
+                  },
+                })}
+                className="mt-1 w-full rounded-lg border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[--brand-primary]"
               />
               {errors.celular && (
                 <p className="mt-1 text-xs text-red-600">
@@ -170,7 +210,8 @@ export default function UpdateContactModal({
             </div>
           )}
 
-          <div className="mt-2 flex items-center justify-end gap-2">
+          {/* Footer */}
+          <div className="mt-1 flex items-center justify-end gap-2 pt-2 border-t border-white/10">
             <button
               type="button"
               onClick={onClose}
@@ -181,7 +222,7 @@ export default function UpdateContactModal({
             <button
               type="submit"
               disabled={isSubmitting || !isDirty}
-              className="rounded-lg bg-[--brand-primary] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              className="rounded-lg bg-[--brand-primary] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 hover:brightness-110"
             >
               {isSubmitting ? "Guardando…" : "Guardar"}
             </button>

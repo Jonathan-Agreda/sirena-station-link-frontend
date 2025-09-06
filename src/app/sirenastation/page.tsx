@@ -10,7 +10,7 @@ import { motion } from "framer-motion";
 import { LogoAnimated } from "@/components/LogoAnimated";
 import { useSirenSocket } from "@/hook/useSirenSocket";
 import { toggleSiren } from "@/services/sirens";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSirenTimerStore } from "@/store/sirenTimer";
 import UpdateContactModal from "@/components/modals/UpdateContactModal";
 import { updateUserContact } from "@/services/users";
@@ -39,6 +39,16 @@ export default function SirenaStationPage() {
   useEffect(() => {
     if (user?.sirens?.length) setSelectedSirenId(user.sirens[0].deviceId);
   }, [user]);
+
+  // Valores iniciales del modal (memoizados para no re-crear objeto en cada render)
+  const initialContact = useMemo(
+    () => ({
+      email: user?.email ?? "",
+      cedula: user?.cedula ?? null,
+      celular: user?.celular ?? null,
+    }),
+    [user?.email, user?.cedula, user?.celular]
+  );
 
   // Mutación: actualizar email / cédula / celular
   const contactMutation = useMutation({
@@ -120,11 +130,8 @@ export default function SirenaStationPage() {
     try {
       await toggleSiren(state.deviceId, action);
       if (action === "OFF" && selectedSirenId) clearTimer(selectedSirenId);
-    } catch (err) {
-      // Log en desarrollo; no rompe en producción
-      if (process.env.NODE_ENV !== "production") {
-        console.error("Error enviando comando:", err);
-      }
+    } catch {
+      // noop: error al enviar comando (evita warning por console)
     }
   }
 
@@ -373,11 +380,7 @@ export default function SirenaStationPage() {
             <UpdateContactModal
               open={openModal}
               onClose={() => setOpenModal(false)}
-              initial={{
-                email: user.email ?? "",
-                cedula: user.cedula ?? null,
-                celular: user.celular ?? null,
-              }}
+              initial={initialContact}
               onSubmit={(p) => contactMutation.mutateAsync(p)}
             />
           </>
