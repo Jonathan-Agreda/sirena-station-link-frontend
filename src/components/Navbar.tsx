@@ -20,7 +20,6 @@ export default function Navbar() {
 
   const isDark = mounted && resolvedTheme === "dark";
   const toggle = () => setTheme(isDark ? "light" : "dark");
-
   const isStaff = ["SUPERADMIN", "ADMIN", "GUARDIA"].includes(user?.role ?? "");
 
   return (
@@ -39,12 +38,9 @@ export default function Navbar() {
           <nav className="flex flex-wrap items-center gap-2 sm:gap-3">
             {isAuthenticated && user ? (
               <>
-                {/* ======================= INICIO DE CAMBIOS ======================= */}
-
-                {/* Lógica para la página de INICIO ("/") */}
+                {/* Navegación contextual */}
                 {pathname === "/" && (
                   <>
-                    {/* El Staff ve ambos enlaces */}
                     {isStaff && (
                       <Link
                         href="/dashboard"
@@ -58,67 +54,62 @@ export default function Navbar() {
                         Dashboard 📋
                       </Link>
                     )}
-                    {/* Todos los usuarios logueados ven SirenaStation en el Home */}
                     <Link
                       href="/sirenastation"
                       className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium
-                                   border border-[var(--brand-primary)] text-[var(--brand-primary)]
-                                   hover:bg-[var(--brand-primary)] hover:text-white
-                                   dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)]
-                                   dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)]
-                                   transition"
+                                 border border-[var(--brand-primary)] text-[var(--brand-primary)]
+                                 hover:bg-[var(--brand-primary)] hover:text-white
+                                 dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)]
+                                 dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)]
+                                 transition"
                     >
                       SirenaStation 📢
                     </Link>
                   </>
                 )}
 
-                {/* Lógica para la página de SIRENASTATION */}
                 {pathname.startsWith("/sirenastation") && isStaff && (
                   <Link
                     href="/dashboard"
                     className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium
-                                   border border-[var(--brand-primary)] text-[var(--brand-primary)]
-                                   hover:bg-[var(--brand-primary)] hover:text-white
-                                   dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)]
-                                   dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)]
-                                   transition"
+                               border border-[var(--brand-primary)] text-[var(--brand-primary)]
+                               hover:bg-[var(--brand-primary)] hover:text-white transition"
                   >
                     Dashboard 📋
                   </Link>
                 )}
 
-                {/* Lógica para la página de DASHBOARD */}
                 {pathname.startsWith("/dashboard") && isStaff && (
                   <Link
                     href="/sirenastation"
                     className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium
-                                   border border-[var(--brand-primary)] text-[var(--brand-primary)]
-                                   hover:bg-[var(--brand-primary)] hover:text-white
-                                   dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)]
-                                   dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)]
-                                   transition"
+                               border border-[var(--brand-primary)] text-[var(--brand-primary)]
+                               hover:bg-[var(--brand-primary)] hover:text-white transition"
                   >
                     SirenaStation 📢
                   </Link>
                 )}
 
-                {/* ======================== FIN DE CAMBIOS ======================== */}
-
-                <span className="hidden sm:inline text-sm opacity-80">
+                {/* Username pill */}
+                <span
+                  className="hidden sm:inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs sm:text-sm
+                             border-[color-mix(in_oklab,var(--brand-primary),transparent_60%)]
+                             bg-[color-mix(in_oklab,transparent,var(--brand-primary)_12%)]
+                             text-[var(--brand-primary)]"
+                  title={user.username}
+                >
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--brand-primary)]" />
                   {user.username}
                 </span>
+
                 <LogoutButton />
               </>
             ) : (
               <Link
                 href="/login"
                 className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium
-                               border border-[var(--brand-primary)] text-[var(--brand-primary)]
-                               hover:bg-[var(--brand-primary)] hover:text-white
-                               dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)]
-                               dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)]
-                               transition"
+                           border border-[var(--brand-primary)] text-[var(--brand-primary)]
+                           hover:bg-[var(--brand-primary)] hover:text-white transition"
               >
                 Iniciar sesión
               </Link>
@@ -144,7 +135,7 @@ export default function Navbar() {
         </div>
       </header>
 
-      {/* Estilos de animación */}
+      {/* Animación logo */}
       <style jsx global>{`
         .logo-navbar-animated .wave1,
         .logo-navbar-animated .wave2 {

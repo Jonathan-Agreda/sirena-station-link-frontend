@@ -1,4 +1,3 @@
-// src/components/modals/UpdateContactModal.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -89,7 +88,6 @@ export default function UpdateContactModal({
   const emailVal = watch("email");
   const cedulaVal = watch("cedula");
   const celularVal = watch("celular");
-
   const trimOrNull = (v?: string) => (v && v.trim() ? v.trim() : null);
 
   const hasChanges = useMemo(() => {
@@ -120,7 +118,6 @@ export default function UpdateContactModal({
       cedula: string | null;
       celular: string | null;
     }> = {};
-
     if (nextEmail !== (initial.email ?? "")) changes.email = nextEmail;
     if ((initial.cedula ?? null) !== nextCedula) changes.cedula = nextCedula;
     if ((initial.celular ?? null) !== nextCelular)
@@ -263,14 +260,22 @@ export default function UpdateContactModal({
             >
               Cancelar
             </button>
+
             <button
               type="submit"
               disabled={!canSave}
-              className={`cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold text-white transition
+              aria-disabled={!canSave}
+              title={
+                canSave
+                  ? "Guardar cambios"
+                  : "Completa cambios válidos para guardar"
+              }
+              className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--brand-primary]
                 ${
                   canSave
-                    ? "bg-[--brand-primary] hover:brightness-110"
-                    : "bg-[--brand-primary]/60"
+                    ? "cursor-pointer bg-[--brand-primary] hover:brightness-110 hover:shadow-md"
+                    : "cursor-not-allowed bg-[--brand-primary]/60"
                 }`}
             >
               {isSubmitting ? "Guardando…" : "Guardar"}
