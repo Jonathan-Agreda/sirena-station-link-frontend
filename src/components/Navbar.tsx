@@ -3,7 +3,15 @@
 import Link from "next/link";
 import { env } from "@/env";
 import { useTheme } from "next-themes";
-import { Moon, Sun, User, KeyRound } from "lucide-react";
+import {
+  Moon,
+  Sun,
+  User,
+  KeyRound,
+  HelpCircle,
+  FileDown,
+  ExternalLink,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/store/auth";
 import { usePathname } from "next/navigation";
@@ -19,7 +27,10 @@ export default function Navbar() {
 
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [changePassOpen, setChangePassOpen] = useState(false);
+  const [helpMenuOpen, setHelpMenuOpen] = useState(false);
+
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const helpRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => setMounted(true), []);
   const isDark = mounted && resolvedTheme === "dark";
@@ -27,16 +38,26 @@ export default function Navbar() {
 
   const isStaff = ["SUPERADMIN", "ADMIN", "GUARDIA"].includes(user?.role ?? "");
 
+  // Cerrar menús al click fuera
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (!menuRef.current) return;
-      if (!menuRef.current.contains(e.target as Node)) {
+      const t = e.target as Node;
+      if (menuRef.current && !menuRef.current.contains(t))
         setUserMenuOpen(false);
-      }
+      if (helpRef.current && !helpRef.current.contains(t))
+        setHelpMenuOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Cerrar menús/modales al cambiar ruta o auth
+  useEffect(() => {
+    if (userMenuOpen) setUserMenuOpen(false);
+    if (helpMenuOpen) setHelpMenuOpen(false);
+    if (changePassOpen) setChangePassOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, isAuthenticated]);
 
   return (
     <>
@@ -94,9 +115,13 @@ export default function Navbar() {
                 {/* --- Username + menú --- */}
                 <div className="relative" ref={menuRef}>
                   <button
-                    onClick={() => setUserMenuOpen((v) => !v)}
+                    onClick={() => {
+                      setUserMenuOpen((v) => !v);
+                      setHelpMenuOpen(false);
+                    }}
                     title={user.username}
                     className="hidden cursor-pointer sm:inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs sm:text-sm font-medium border-[color-mix(in_oklab,var(--brand-primary),transparent_60%)] bg-[color-mix(in_oklab,transparent,var(--brand-primary)_12%)] text-[color-mix(in_oklab,var(--brand-primary),black_30%)] dark:text-[color-mix(in_oklab,var(--brand-primary),white_20%)] transition hover:opacity-100"
+                    aria-expanded={userMenuOpen}
                   >
                     <User size={14} className="opacity-70" />
                     {user.username}
@@ -135,6 +160,49 @@ export default function Navbar() {
                 Iniciar sesión
               </Link>
             )}
+
+            {/* --- Menú de Ayuda (?) visible para todos --- */}
+            <div className="relative" ref={helpRef}>
+              <button
+                onClick={() => {
+                  setHelpMenuOpen((v) => !v);
+                  setUserMenuOpen(false);
+                }}
+                className="cursor-pointer rounded-lg p-2 hover:bg-[color-mix(in_oklab,transparent,black_10%)] dark:hover:bg-[color-mix(in_oklab,transparent,white_10%)]"
+                aria-label="Ayuda"
+                aria-expanded={helpMenuOpen}
+                title="Ayuda"
+              >
+                <HelpCircle size={18} />
+              </button>
+
+              {helpMenuOpen && (
+                <div className="absolute right-0 mt-2 min-w-56 rounded-xl border border-neutral-200 dark:border-white/10 bg-white/95 dark:bg-neutral-900/95 shadow-xl ring-1 ring-black/5 dark:ring-white/10 p-1 z-50">
+                  {/* Ver en navegador (nueva pestaña) */}
+                  <a
+                    href="/manuals/manual.pdf"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setHelpMenuOpen(false)}
+                    className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-white/10"
+                  >
+                    <ExternalLink size={16} className="shrink-0 opacity-90" />
+                    Ver en el navegador
+                  </a>
+
+                  {/* Descargar directo */}
+                  <a
+                    href="/manuals/manual.pdf"
+                    download
+                    onClick={() => setHelpMenuOpen(false)}
+                    className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-white/10"
+                  >
+                    <FileDown size={16} className="shrink-0 opacity-90" />
+                    Descargar manual (PDF)
+                  </a>
+                </div>
+              )}
+            </div>
 
             {/* Tema */}
             <button
