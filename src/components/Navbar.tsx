@@ -17,7 +17,6 @@ export default function Navbar() {
   const { isAuthenticated, user } = useAuthStore();
   const pathname = usePathname();
 
-  // --- nuevo: estado para menú y modal
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [changePassOpen, setChangePassOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -28,7 +27,6 @@ export default function Navbar() {
 
   const isStaff = ["SUPERADMIN", "ADMIN", "GUARDIA"].includes(user?.role ?? "");
 
-  // cerrar menú al click fuera
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (!menuRef.current) return;
@@ -105,19 +103,22 @@ export default function Navbar() {
                   </button>
 
                   {userMenuOpen && (
-                    <div className="absolute right-0 mt-2 min-w-56 rounded-xl border border-white/10 bg-white/95 dark:bg-neutral-900/95 shadow-xl ring-1 ring-white/10 p-1 z-50">
+                    <div className="absolute right-0 mt-2 min-w-56 rounded-xl border border-neutral-200 dark:border-white/10 bg-white/95 dark:bg-neutral-900/95 shadow-xl ring-1 ring-black/5 dark:ring-white/10 p-1 z-50">
                       <button
                         onClick={() => {
                           setUserMenuOpen(false);
                           setChangePassOpen(true);
                         }}
-                        className="w-full cursor-pointer text-left flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-[color-mix(in_oklab,transparent,black_10%)] dark:hover:bg-[color-mix(in_oklab,transparent,white_10%)]"
+                        className="w-full cursor-pointer text-left flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-white/10"
                       >
-                        <KeyRound size={16} />
+                        <KeyRound
+                          size={16}
+                          className="shrink-0 text-[var(--brand-primary)] opacity-90"
+                        />
                         Cambiar contraseña
                       </button>
 
-                      <div className="my-1 h-px bg-white/10" />
+                      <div className="my-1 h-px bg-neutral-200 dark:bg-white/10" />
 
                       <div className="px-3 pb-1">
                         <LogoutButton />
@@ -161,7 +162,7 @@ export default function Navbar() {
         onClose={() => setChangePassOpen(false)}
       />
 
-      {/* Animación del logo (tal como la tenías) */}
+      {/* Animación del logo */}
       <style jsx global>{`
         .logo-navbar-animated .wave1,
         .logo-navbar-animated .wave2 {
