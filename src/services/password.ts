@@ -9,9 +9,9 @@ export async function changePasswordManual(
   currentPassword: string,
   newPassword: string
 ): Promise<{ message: string }> {
-  const { data } = await api.post("/auth/change-password", {
+  const { data } = await api.post("/auth/change-password/web", {
     currentPassword,
     newPassword,
   });
-  return data;
+  return data as { message: string };
 }
