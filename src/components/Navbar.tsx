@@ -75,6 +75,7 @@ export default function Navbar() {
           <nav className="flex flex-wrap items-center gap-2 sm:gap-3">
             {isAuthenticated && user ? (
               <>
+                {/* Links */}
                 {pathname === "/" && (
                   <>
                     {isStaff && (
@@ -94,26 +95,9 @@ export default function Navbar() {
                   </>
                 )}
 
-                {pathname.startsWith("/sirenastation") && isStaff && (
-                  <Link
-                    href="/dashboard"
-                    className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium border border-[var(--brand-primary)] text-[var(--brand-primary)] hover:bg-[var(--brand-primary)] hover:text-white dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)] dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)] transition"
-                  >
-                    Dashboard 📋
-                  </Link>
-                )}
-
-                {pathname.startsWith("/dashboard") && isStaff && (
-                  <Link
-                    href="/sirenastation"
-                    className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium border border-[var(--brand-primary)] text-[var(--brand-primary)] hover:bg-[var(--brand-primary)] hover:text-white dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)] dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)] transition"
-                  >
-                    SirenaStation 📢
-                  </Link>
-                )}
-
                 {/* --- Username + menú --- */}
                 <div className="relative" ref={menuRef}>
+                  {/* Desktop: username visible */}
                   <button
                     onClick={() => {
                       setUserMenuOpen((v) => !v);
@@ -125,6 +109,18 @@ export default function Navbar() {
                   >
                     <User size={14} className="opacity-70" />
                     {user.username}
+                  </button>
+
+                  {/* Mobile: solo icono */}
+                  <button
+                    onClick={() => {
+                      setUserMenuOpen((v) => !v);
+                      setHelpMenuOpen(false);
+                    }}
+                    className="sm:hidden cursor-pointer flex items-center justify-center rounded-full border p-2 text-sm border-[color-mix(in_oklab,var(--brand-primary),transparent_60%)] bg-[color-mix(in_oklab,transparent,var(--brand-primary)_12%)] text-[var(--brand-primary)] hover:opacity-100"
+                    aria-label="Menú de usuario"
+                  >
+                    <User size={18} />
                   </button>
 
                   {userMenuOpen && (
@@ -178,7 +174,6 @@ export default function Navbar() {
 
               {helpMenuOpen && (
                 <div className="absolute right-0 mt-2 min-w-56 rounded-xl border border-neutral-200 dark:border-white/10 bg-white/95 dark:bg-neutral-900/95 shadow-xl ring-1 ring-black/5 dark:ring-white/10 p-1 z-50">
-                  {/* Ver en navegador (nueva pestaña) */}
                   <a
                     href="/manuals/manual.pdf"
                     target="_blank"
@@ -189,8 +184,6 @@ export default function Navbar() {
                     <ExternalLink size={16} className="shrink-0 opacity-90" />
                     Ver en el navegador
                   </a>
-
-                  {/* Descargar directo */}
                   <a
                     href="/manuals/manual.pdf"
                     download
