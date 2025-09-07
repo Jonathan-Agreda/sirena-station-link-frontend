@@ -119,12 +119,28 @@ export default function Navbar() {
                     }}
                     className="sm:hidden cursor-pointer flex items-center justify-center rounded-full border p-2 text-sm border-[color-mix(in_oklab,var(--brand-primary),transparent_60%)] bg-[color-mix(in_oklab,transparent,var(--brand-primary)_12%)] text-[var(--brand-primary)] hover:opacity-100"
                     aria-label="Menú de usuario"
+                    aria-expanded={userMenuOpen}
                   >
                     <User size={18} />
                   </button>
 
                   {userMenuOpen && (
                     <div className="absolute right-0 mt-2 min-w-56 rounded-xl border border-neutral-200 dark:border-white/10 bg-white/95 dark:bg-neutral-900/95 shadow-xl ring-1 ring-black/5 dark:ring-white/10 p-1 z-50">
+                      {/* Header con username (nuevo) */}
+                      <div className="px-3 py-2 mb-1 flex items-center gap-2 rounded-lg bg-neutral-50/80 dark:bg-white/5">
+                        <div className="grid h-8 w-8 place-items-center rounded-full bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
+                          <User size={16} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">
+                            {user.username}
+                          </p>
+                          <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate">
+                            {user.email || user.role}
+                          </p>
+                        </div>
+                      </div>
+
                       <button
                         onClick={() => {
                           setUserMenuOpen(false);
