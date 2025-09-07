@@ -182,31 +182,17 @@ export default function Navbar() {
                   setHelpMenuOpen((v) => !v);
                   setUserMenuOpen(false);
                 }}
-                className={`group cursor-pointer rounded-lg p-2 transition-all duration-200
-    hover:bg-[color-mix(in_oklab,transparent,black_8%)]
-    hover:ring-1 hover:ring-neutral-300/50
-    dark:hover:bg-[color-mix(in_oklab,transparent,white_8%)]
-    dark:hover:ring-white/20
-    focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/50
-    active:scale-95
-    ${
-      helpMenuOpen
-        ? "ring-1 ring-[var(--brand-primary)]/60 bg-[color-mix(in_oklab,transparent,var(--brand-primary)_8%)] dark:bg-[color-mix(in_oklab,transparent,white_6%)] dark:ring-[var(--brand-primary)]/40"
-        : ""
-    }`}
+                className="cursor-pointer rounded-lg p-2 hover:bg-[color-mix(in_oklab,transparent,black_10%)] dark:hover:bg-[color-mix(in_oklab,transparent,white_10%)]"
                 aria-label="Ayuda"
                 aria-expanded={helpMenuOpen}
                 title="Ayuda"
               >
-                <HelpCircle
-                  size={18}
-                  className="transition-colors duration-200 text-[var(--fg-light)] dark:text-[var(--fg-dark)] group-hover:text-[var(--brand-primary)] dark:group-hover:text-[var(--brand-primary)] group-active:text-[var(--brand-primary)]"
-                />
+                <HelpCircle size={18} />
               </button>
 
               {helpMenuOpen && (
                 <div className="absolute right-0 mt-2 min-w-64 rounded-xl border border-neutral-200 dark:border-white/10 bg-white/95 dark:bg-neutral-900/95 shadow-xl ring-1 ring-black/5 dark:ring-white/10 p-1 z-50">
-                  {/* Manual PC */}
+                  {/* Sección: Manual PC */}
                   <div className="px-3 py-2 flex items-center gap-2 text-xs font-semibold text-neutral-600 dark:text-neutral-300">
                     <Monitor size={14} /> Manual para PC
                   </div>
@@ -232,7 +218,7 @@ export default function Navbar() {
 
                   <div className="my-1 h-px bg-neutral-200 dark:bg-white/10" />
 
-                  {/* Manual móvil */}
+                  {/* Sección: Manual móvil */}
                   <div className="px-3 py-2 flex items-center gap-2 text-xs font-semibold text-neutral-600 dark:text-neutral-300">
                     <Smartphone size={14} /> Manual para móvil
                   </div>
