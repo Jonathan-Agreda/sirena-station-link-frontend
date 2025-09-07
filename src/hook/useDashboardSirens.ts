@@ -1,6 +1,5 @@
 "use client";
 
-// CAMBIO 1: Se elimina `useMemo` de la lista de importaciones porque no se usa.
 import { useEffect, useRef, useState, useCallback } from "react";
 import api from "@/lib/api";
 import { getSocket } from "@/lib/socket";
@@ -33,8 +32,7 @@ type LastState = {
   lastHeartbeatAt?: string;
 };
 
-// CAMBIO 2: Se crea un tipo para la respuesta de la API de `/sirens`
-// para evitar el uso de `any`.
+// Respuesta de /sirens
 type ApiSiren = {
   deviceId: string;
   ip: string | null;
@@ -49,19 +47,23 @@ const ACK_TIMEOUT_MS = 5_000;
 
 export function useDashboardSirens() {
   const [items, setItems] = useState<DashboardSiren[]>([]);
-  const heartbeatTimers = useRef<Record<string, NodeJS.Timeout>>({});
-  const countdownTimers = useRef<Record<string, NodeJS.Timeout>>({});
-  const ackTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
-  // 1) Hidratar: /sirens (metadatos) + /mqtt/state (últimos estados)
+  // ✅ Tipos de timers universales (web/node)
+  const heartbeatTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>(
+    {}
+  );
+  const countdownTimers = useRef<
+    Record<string, ReturnType<typeof setInterval>>
+  >({});
+  const ackTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  // 1) Hidratar: /sirens + /mqtt/state
   useEffect(() => {
     let mounted = true;
 
     (async () => {
       try {
-        // Sirenas visibles según rol
         const sirensRes = await api.get("/sirens");
-        // CAMBIO 2 (continuación): Se usa el nuevo tipo `ApiSiren[]` en lugar de `any[]`
         const base: DashboardSiren[] = (sirensRes.data as ApiSiren[]).map(
           (s) => ({
             deviceId: s.deviceId,
@@ -79,7 +81,6 @@ export function useDashboardSirens() {
           })
         );
 
-        // Estados recientes (si hay)
         let merged = base;
         try {
           const statesRes = await api.get("/mqtt/state");
@@ -100,7 +101,7 @@ export function useDashboardSirens() {
               : s;
           });
         } catch {
-          // si /mqtt/state no existe aún, seguimos solo con base
+          // /mqtt/state puede no existir aún
         }
 
         if (!mounted) return;
@@ -119,7 +120,18 @@ export function useDashboardSirens() {
   useEffect(() => {
     const socket = getSocket();
 
+    const clearAckTimer = (id: string) => {
+      const t = ackTimers.current[id];
+      if (t) {
+        clearTimeout(t);
+        delete ackTimers.current[id];
+      }
+    };
+
     const onState = (payload: LastState) => {
+      // 🔹 Si llega state, garantizamos quitar el ACK timeout de ese equipo
+      clearAckTimer(payload.deviceId);
+
       setItems((prev) =>
         prev.map((s) =>
           s.deviceId === payload.deviceId
@@ -138,6 +150,9 @@ export function useDashboardSirens() {
     };
 
     const onLwt = (payload: LastState) => {
+      // 🔹 Si cae el dispositivo, también limpiamos su ACK timeout
+      clearAckTimer(payload.deviceId);
+
       setItems((prev) =>
         prev.map((s) =>
           s.deviceId === payload.deviceId
@@ -149,6 +164,7 @@ export function useDashboardSirens() {
 
     const onHeartbeat = (payload: LastState) => {
       const id = payload.deviceId;
+
       setItems((prev) =>
         prev.map((s) => (s.deviceId === id ? { ...s, online: true } : s))
       );
@@ -175,10 +191,8 @@ export function useDashboardSirens() {
     }) => {
       const id = ack.deviceId;
 
-      if (ackTimers.current[id]) {
-        clearTimeout(ackTimers.current[id]);
-        delete ackTimers.current[id];
-      }
+      // cualquier ACK limpia su timer
+      clearAckTimer(id);
 
       if (ack.result !== "OK") {
         setItems((prev) =>
@@ -194,12 +208,14 @@ export function useDashboardSirens() {
       );
 
       if (ack.action === "ON") {
-        const ttlSec = process.env.NEXT_PUBLIC_SIRENA_AUTO_OFF
-          ? parseInt(process.env.NEXT_PUBLIC_SIRENA_AUTO_OFF) / 1000
-          : 300;
+        const autoOffMs =
+          Number(process.env.NEXT_PUBLIC_SIRENA_AUTO_OFF) || 300_000;
+        const ttlSec = Math.floor(autoOffMs / 1000);
+
         setItems((prev) =>
           prev.map((s) => (s.deviceId === id ? { ...s, countdown: ttlSec } : s))
         );
+
         if (countdownTimers.current[id]) {
           clearInterval(countdownTimers.current[id]);
         }
@@ -255,9 +271,9 @@ export function useDashboardSirens() {
       prev.map((s) => (s.deviceId === deviceId ? { ...s, pending: true } : s))
     );
 
-    if (ackTimers.current[deviceId]) {
-      clearTimeout(ackTimers.current[deviceId]);
-    }
+    // (Re)programa timeout de ACK
+    const existing = ackTimers.current[deviceId];
+    if (existing) clearTimeout(existing);
     ackTimers.current[deviceId] = setTimeout(() => {
       setItems((prev) =>
         prev.map((s) =>
@@ -275,8 +291,9 @@ export function useDashboardSirens() {
         cause: "manual",
       });
     } catch (err) {
-      if (ackTimers.current[deviceId]) {
-        clearTimeout(ackTimers.current[deviceId]);
+      const t = ackTimers.current[deviceId];
+      if (t) {
+        clearTimeout(t);
         delete ackTimers.current[deviceId];
       }
       setItems((prev) =>

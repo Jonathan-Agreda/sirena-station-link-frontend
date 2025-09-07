@@ -2,7 +2,7 @@
 
 import { useDashboardSirens } from "@/hook/useDashboardSirens";
 import { Bell, BellOff, Volume2, VolumeX } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback, memo } from "react";
 import { useSirenTimerStore } from "@/store/sirenTimer";
 
 /* ---------- Utilidades ---------- */
@@ -53,6 +53,134 @@ type SirenItem = {
   autoOffAt?: string; // ISO (si backend lo aporta)
 };
 
+/* ========================================================================== */
+/*  Tarjeta de sirena (memoizada) – renderiza y actualiza su propio contador  */
+/* ========================================================================== */
+type CardProps = {
+  s: SirenItem;
+  onToggle: (deviceId: string, action: "ON" | "OFF") => void;
+};
+
+const SirenCard = memo(
+  function SirenCard({ s, onToggle }: CardProps) {
+    const isOn = s.siren === "ON";
+    const disabled = !s.online || s.pending;
+
+    // Suscripción solo al timer de ESTA sirena
+    const timer = useSirenTimerStore((st) => st.timers[s.deviceId]);
+    const [nowTs, setNowTs] = useState(() => Date.now());
+
+    // Tick local: solo actualiza cuando tiene sentido
+    useEffect(() => {
+      if (!isOn) return; // si está OFF no “late”
+      if (isIOS) {
+        let raf = 0;
+        let secRef = Math.floor(Date.now() / 1000);
+        const loop = () => {
+          const sec = Math.floor(Date.now() / 1000);
+          if (sec !== secRef) {
+            secRef = sec;
+            setNowTs(sec * 1000); // fija al inicio del segundo
+          }
+          raf = window.requestAnimationFrame(loop);
+        };
+        raf = window.requestAnimationFrame(loop);
+        return () => window.cancelAnimationFrame(raf);
+      } else {
+        const id = setInterval(() => setNowTs(Date.now()), 1000);
+        return () => clearInterval(id);
+      }
+    }, [isOn]);
+
+    const displayCountdown = useMemo(() => {
+      if (timer?.expiresAt) {
+        return Math.max(0, Math.floor((timer.expiresAt - nowTs) / 1000));
+      }
+      return typeof s.countdown === "number" ? s.countdown : 0;
+    }, [timer?.expiresAt, nowTs, s.countdown]);
+
+    return (
+      <div
+        className={`group rounded-2xl border p-4 shadow-sm bg-card transition
+        hover:shadow-md hover:-translate-y-[2px]
+        ${isOn ? "ring-1 ring-green-600/20" : "ring-1 ring-white/5"}`}
+      >
+        {/* Header */}
+        <div className="mb-2 text-center">
+          <p className="font-semibold tracking-wide">{s.deviceId}</p>
+          <p className="text-xs opacity-70">IP: {s.ip || "—"}</p>
+        </div>
+
+        {/* Botón principal */}
+        <div className="flex items-center justify-center">
+          <button
+            onClick={() => onToggle(s.deviceId, isOn ? "OFF" : "ON")}
+            disabled={disabled}
+            className={`relative mt-2 h-28 w-28 rounded-full grid place-items-center text-white font-bold transition
+            ${
+              !s.online
+                ? "bg-gray-400 cursor-not-allowed"
+                : s.pending
+                ? "bg-gray-500 cursor-wait"
+                : isOn
+                ? "bg-red-gradient animate-pulse cursor-pointer"
+                : "bg-green-gradient hover:brightness-110 cursor-pointer"
+            }`}
+          >
+            <span className="text-base">
+              {!s.online
+                ? "Offline"
+                : s.pending
+                ? "Enviando…"
+                : isOn
+                ? "Apagar"
+                : "Encender"}
+            </span>
+
+            {displayCountdown > 0 && !s.pending && (
+              <span className="absolute bottom-2 text-xs">
+                {formatTime(displayCountdown)}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Footer / estado */}
+        <div className="mt-3 text-center text-sm">
+          <span
+            className={`mr-1 rounded-full px-2 py-0.5 text-xs font-medium
+            ${
+              s.online
+                ? "bg-green-500/15 text-green-600"
+                : "bg-red-500/15 text-red-600"
+            }`}
+          >
+            {s.online ? "Online" : "Offline"}
+          </span>
+          <span className="opacity-70">·</span>
+          <span className="ml-1">
+            Sirena:{" "}
+            <strong className={isOn ? "text-green-600" : "text-red-600"}>
+              {s.siren}
+            </strong>
+          </span>
+        </div>
+      </div>
+    );
+  },
+  // Comparador para evitar re-render si no cambian campos relevantes
+  (prev, next) =>
+    prev.s.deviceId === next.s.deviceId &&
+    prev.s.siren === next.s.siren &&
+    prev.s.online === next.s.online &&
+    prev.s.pending === next.s.pending &&
+    prev.s.ip === next.s.ip &&
+    prev.s.countdown === next.s.countdown &&
+    prev.s.updatedAt === next.s.updatedAt &&
+    prev.s.autoOffAt === next.s.autoOffAt
+);
+
+/* =============================== Componente principal =============================== */
 export default function DashboardSirens() {
   const { sirens, sendCommand } = useDashboardSirens() as {
     sirens: SirenItem[];
@@ -62,7 +190,6 @@ export default function DashboardSirens() {
   /* ---------- Persistencia de contadores ---------- */
   const AUTO_OFF_MS = Number(process.env.NEXT_PUBLIC_SIRENA_AUTO_OFF) || 300000; // ms
 
-  const timers = useSirenTimerStore((s) => s.timers);
   const setTimer = useSirenTimerStore((s) => s.setTimer);
   const clearTimer = useSirenTimerStore((s) => s.clearTimer);
   const getTimer = useSirenTimerStore((s) => s.getTimer);
@@ -100,52 +227,6 @@ export default function DashboardSirens() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sirens]);
-
-  // Tick "suave": iOS usa rAF (1 update/segundo), otros setInterval(1s)
-  const [nowTs, setNowTs] = useState(() => Date.now());
-  const secRef = useRef(Math.floor(Date.now() / 1000));
-
-  useEffect(() => {
-    if (isIOS) {
-      let raf = 0;
-      const loop = () => {
-        const sec = Math.floor(Date.now() / 1000);
-        if (sec !== secRef.current) {
-          secRef.current = sec;
-          setNowTs(sec * 1000); // fija al inicio del segundo
-        }
-        raf = window.requestAnimationFrame(loop);
-      };
-      raf = window.requestAnimationFrame(loop);
-      return () => window.cancelAnimationFrame(raf);
-    } else {
-      const id = setInterval(() => setNowTs(Date.now()), 1000);
-      return () => clearInterval(id);
-    }
-  }, []);
-
-  // Ajuste al volver de background (iOS/otros): refresca inmediato
-  useEffect(() => {
-    const onVis = () => setNowTs(Date.now());
-    const opts: AddEventListenerOptions = { passive: true };
-    document.addEventListener("visibilitychange", onVis, opts);
-    window.addEventListener("focus", onVis, opts);
-    return () => {
-      document.removeEventListener("visibilitychange", onVis, opts);
-      window.removeEventListener("focus", onVis, opts);
-    };
-  }, []);
-
-  const getDisplayCountdown = useCallback(
-    (deviceId: string, fallback?: number) => {
-      const t = timers[deviceId];
-      if (t?.expiresAt) {
-        return Math.max(0, Math.floor((t.expiresAt - nowTs) / 1000));
-      }
-      return fallback ?? 0;
-    },
-    [timers, nowTs]
-  );
 
   /* ----------------------- Orden y métricas ----------------------- */
   const sortedSirens = useMemo(
@@ -480,82 +561,9 @@ export default function DashboardSirens() {
 
       {/* Grid de sirenas */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {sortedSirens.map((s) => {
-          const isOn = s.siren === "ON";
-          const disabled = !s.online || s.pending;
-
-          const displayCountdown = getDisplayCountdown(s.deviceId, s.countdown);
-
-          return (
-            <div
-              key={s.deviceId}
-              className={`group rounded-2xl border p-4 shadow-sm bg-card transition
-                hover:shadow-md hover:-translate-y-[2px]
-                ${isOn ? "ring-1 ring-green-600/20" : "ring-1 ring-white/5"}`}
-            >
-              {/* Header */}
-              <div className="mb-2 text-center">
-                <p className="font-semibold tracking-wide">{s.deviceId}</p>
-                <p className="text-xs opacity-70">IP: {s.ip || "—"}</p>
-              </div>
-
-              {/* Botón principal */}
-              <div className="flex items-center justify-center">
-                <button
-                  onClick={() => sendCommand(s.deviceId, isOn ? "OFF" : "ON")}
-                  disabled={disabled}
-                  className={`relative mt-2 h-28 w-28 rounded-full grid place-items-center text-white font-bold transition
-                    ${
-                      !s.online
-                        ? "bg-gray-400 cursor-not-allowed"
-                        : s.pending
-                        ? "bg-gray-500 cursor-wait"
-                        : isOn
-                        ? "bg-red-gradient animate-pulse cursor-pointer"
-                        : "bg-green-gradient hover:brightness-110 cursor-pointer"
-                    }`}
-                >
-                  <span className="text-base">
-                    {!s.online
-                      ? "Offline"
-                      : s.pending
-                      ? "Enviando…"
-                      : isOn
-                      ? "Apagar"
-                      : "Encender"}
-                  </span>
-
-                  {displayCountdown > 0 && !s.pending && (
-                    <span className="absolute bottom-2 text-xs">
-                      {formatTime(displayCountdown)}
-                    </span>
-                  )}
-                </button>
-              </div>
-
-              {/* Footer / estado */}
-              <div className="mt-3 text-center text-sm">
-                <span
-                  className={`mr-1 rounded-full px-2 py-0.5 text-xs font-medium
-                    ${
-                      s.online
-                        ? "bg-green-500/15 text-green-600"
-                        : "bg-red-500/15 text-red-600"
-                    }`}
-                >
-                  {s.online ? "Online" : "Offline"}
-                </span>
-                <span className="opacity-70">·</span>
-                <span className="ml-1">
-                  Sirena:{" "}
-                  <strong className={isOn ? "text-green-600" : "text-red-600"}>
-                    {s.siren}
-                  </strong>
-                </span>
-              </div>
-            </div>
-          );
-        })}
+        {sortedSirens.map((s) => (
+          <SirenCard key={s.deviceId} s={s} onToggle={sendCommand} />
+        ))}
       </div>
     </div>
   );

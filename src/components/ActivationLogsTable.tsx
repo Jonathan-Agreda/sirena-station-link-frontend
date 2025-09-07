@@ -50,13 +50,15 @@ export default function ActivationLogsTable() {
   });
   const [showFilters, setShowFilters] = useState(false);
 
-  const { data, isLoading, isFetching } = useQuery<ActivationLogsResponse>({
-    queryKey: ["activationLogs", filters],
-    queryFn: () => fetchActivationLogs(filters),
-    placeholderData: keepPreviousData,
-    refetchInterval: REFETCH_MS,
-    refetchOnWindowFocus: true,
-  });
+  const { data, isLoading, isPlaceholderData } =
+    useQuery<ActivationLogsResponse>({
+      queryKey: ["activationLogs", filters],
+      queryFn: () => fetchActivationLogs(filters),
+      placeholderData: keepPreviousData,
+      refetchInterval: REFETCH_MS,
+      // Evita refetch extra al volver de otra pestaña y reduce flicker visual
+      refetchOnWindowFocus: false,
+    });
 
   const rows = useMemo(() => data?.data ?? [], [data]);
   const total = data?.total ?? 0;
@@ -64,8 +66,9 @@ export default function ActivationLogsTable() {
   const perPage = data?.perPage ?? filters.perPage!;
   const totalPages = Math.max(1, Math.ceil(total / perPage));
 
-  const disablePrev = page <= 1 || isFetching;
-  const disableNext = page >= totalPages || isFetching;
+  // Deshabilitar solo cuando tiene sentido: primera carga o cambio real de página
+  const disablePrev = page <= 1 || isLoading || isPlaceholderData;
+  const disableNext = page >= totalPages || isLoading || isPlaceholderData;
 
   // ✅ Detecta si la vista es “sin filtros”
   const isUnfiltered = useMemo(() => {
@@ -129,7 +132,6 @@ export default function ActivationLogsTable() {
   // 🔒 Si hay filtros activos, desactiva y limpia cualquier highlight
   useEffect(() => {
     if (!isUnfiltered) {
-      // limpiamos cualquier highlight activo para que no “parpadee” al filtrar
       if (highlighted.size > 0) setHighlighted(new Set());
       return;
     }
@@ -332,7 +334,7 @@ export default function ActivationLogsTable() {
               {isLoading ? (
                 [...Array(8)].map((_, i) => (
                   <tr key={i}>
-                    <td className="px-3 py-2" colSpan={9}>
+                    <td className="px-3 py-2" colSpan={11}>
                       <Skeleton className="h-5 w-full" />
                     </td>
                   </tr>
@@ -340,7 +342,7 @@ export default function ActivationLogsTable() {
               ) : rows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={11}
                     className="px-3 py-6 text-center text-neutral-500"
                   >
                     Sin resultados
