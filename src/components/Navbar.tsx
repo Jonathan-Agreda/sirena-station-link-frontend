@@ -11,6 +11,8 @@ import {
   HelpCircle,
   FileDown,
   ExternalLink,
+  Monitor,
+  Smartphone,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/store/auth";
@@ -97,7 +99,7 @@ export default function Navbar() {
 
                 {/* --- Username + menú --- */}
                 <div className="relative" ref={menuRef}>
-                  {/* Desktop: username visible */}
+                  {/* Desktop */}
                   <button
                     onClick={() => {
                       setUserMenuOpen((v) => !v);
@@ -111,7 +113,7 @@ export default function Navbar() {
                     {user.username}
                   </button>
 
-                  {/* Mobile: solo icono */}
+                  {/* Mobile */}
                   <button
                     onClick={() => {
                       setUserMenuOpen((v) => !v);
@@ -126,7 +128,7 @@ export default function Navbar() {
 
                   {userMenuOpen && (
                     <div className="absolute right-0 mt-2 min-w-56 rounded-xl border border-neutral-200 dark:border-white/10 bg-white/95 dark:bg-neutral-900/95 shadow-xl ring-1 ring-black/5 dark:ring-white/10 p-1 z-50">
-                      {/* Header con username (nuevo) */}
+                      {/* Header con username */}
                       <div className="px-3 py-2 mb-1 flex items-center gap-2 rounded-lg bg-neutral-50/80 dark:bg-white/5">
                         <div className="grid h-8 w-8 place-items-center rounded-full bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
                           <User size={16} />
@@ -189,9 +191,13 @@ export default function Navbar() {
               </button>
 
               {helpMenuOpen && (
-                <div className="absolute right-0 mt-2 min-w-56 rounded-xl border border-neutral-200 dark:border-white/10 bg-white/95 dark:bg-neutral-900/95 shadow-xl ring-1 ring-black/5 dark:ring-white/10 p-1 z-50">
+                <div className="absolute right-0 mt-2 min-w-64 rounded-xl border border-neutral-200 dark:border-white/10 bg-white/95 dark:bg-neutral-900/95 shadow-xl ring-1 ring-black/5 dark:ring-white/10 p-1 z-50">
+                  {/* Sección: Manual PC */}
+                  <div className="px-3 py-2 flex items-center gap-2 text-xs font-semibold text-neutral-600 dark:text-neutral-300">
+                    <Monitor size={14} /> Manual para PC
+                  </div>
                   <a
-                    href="/manuals/manual.pdf"
+                    href="/manuals/manual_web_pc.pdf"
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => setHelpMenuOpen(false)}
@@ -201,13 +207,39 @@ export default function Navbar() {
                     Ver en el navegador
                   </a>
                   <a
-                    href="/manuals/manual.pdf"
-                    download
+                    href="/manuals/manual_web_pc.pdf"
+                    download="manual_web_pc.pdf"
                     onClick={() => setHelpMenuOpen(false)}
                     className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-white/10"
                   >
                     <FileDown size={16} className="shrink-0 opacity-90" />
-                    Descargar manual (PDF)
+                    Descargar PDF
+                  </a>
+
+                  <div className="my-1 h-px bg-neutral-200 dark:bg-white/10" />
+
+                  {/* Sección: Manual Móvil */}
+                  <div className="px-3 py-2 flex items-center gap-2 text-xs font-semibold text-neutral-600 dark:text-neutral-300">
+                    <Smartphone size={14} /> Manual para móvil
+                  </div>
+                  <a
+                    href="/manuals/manual_web_mobile.pdf"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setHelpMenuOpen(false)}
+                    className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-white/10"
+                  >
+                    <ExternalLink size={16} className="shrink-0 opacity-90" />
+                    Ver en el navegador
+                  </a>
+                  <a
+                    href="/manuals/manual_web_mobile.pdf"
+                    download="manual_web_mobile.pdf"
+                    onClick={() => setHelpMenuOpen(false)}
+                    className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-white/10"
+                  >
+                    <FileDown size={16} className="shrink-0 opacity-90" />
+                    Descargar PDF
                   </a>
                 </div>
               )}
