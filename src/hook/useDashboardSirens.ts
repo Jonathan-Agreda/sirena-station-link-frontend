@@ -42,7 +42,7 @@ type ApiSiren = {
   groupId: string | null;
 };
 
-const HEARTBEAT_MS = 30_000;
+const HEARTBEAT_MS = 45_000;
 const ACK_TIMEOUT_MS = 5_000;
 
 export function useDashboardSirens() {
