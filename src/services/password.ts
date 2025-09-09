@@ -1,5 +1,6 @@
-// src/services/password.ts
 import api from "@/lib/api";
+import { ForgotPasswordSchema } from "@/lib/validators";
+import { z } from "zod";
 
 /**
  * Cambio de contraseña manual (usuario autenticado).
@@ -13,5 +14,15 @@ export async function changePasswordManual(
     currentPassword,
     newPassword,
   });
+  return data as { message: string };
+}
+
+/**
+ * Solicita el enlace de restablecimiento de contraseña para un email.
+ */
+export async function requestPasswordReset(
+  values: z.infer<typeof ForgotPasswordSchema>
+): Promise<{ message: string }> {
+  const { data } = await api.post("/auth/forgot-password", values);
   return data as { message: string };
 }
