@@ -45,3 +45,19 @@ export const UpdateContactSchema = z.object({
 export const ForgotPasswordSchema = z.object({
   email: z.string().email("Por favor, ingresa un correo electrónico válido."),
 });
+
+// 👇 NUEVO ESQUEMA AÑADIDO
+export const ResetPasswordSchema = z
+  .object({
+    token: z
+      .string()
+      .min(1, "El token es inválido o no ha sido proporcionado."),
+    newPassword: z
+      .string()
+      .min(6, "La nueva contraseña debe tener al menos 6 caracteres"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Las contraseñas no coinciden",
+    path: ["confirmPassword"],
+  });
