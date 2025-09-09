@@ -3,9 +3,12 @@
 import { useEffect } from "react";
 import { fetchMe, MeResponse } from "@/services/auth";
 import { useAuthStore } from "@/store/auth";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation"; // 👈 Importa usePathname
 import api from "@/lib/api";
 import { useHydrated } from "@/hook/useHydrated";
+
+// 👇 Define las rutas que no necesitan autenticación
+const PUBLIC_ROUTES = ["/login", "/forgot-password", "/reset-password"];
 
 /**
  * Bootstrap global:
@@ -19,11 +22,17 @@ export default function AuthBootstrap() {
   const accessToken = useAuthStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.user);
   const router = useRouter();
+  const pathname = usePathname(); // 👈 Obtiene la ruta actual
 
   useEffect(() => {
     const run = async () => {
       try {
         if (!hydrated) return;
+
+        // 👇 CORRECCIÓN: Si la ruta es pública, no hagas nada.
+        if (PUBLIC_ROUTES.includes(pathname)) {
+          return;
+        }
 
         // 1) token + user ya hidratados → confiar
         if (accessToken && user) return;
@@ -63,7 +72,7 @@ export default function AuthBootstrap() {
     };
 
     run();
-  }, [hydrated, accessToken, user, router]);
+  }, [hydrated, accessToken, user, router, pathname]); // 👈 Añade pathname a las dependencias
 
   return null;
 }
