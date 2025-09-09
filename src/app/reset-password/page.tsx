@@ -7,10 +7,12 @@ import { resetPassword } from "@/services/password";
 import { toast } from "sonner";
 import { Suspense, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, KeyRound } from "lucide-react";
+import { ArrowLeft, Key, CheckCircle } from "lucide-react";
 import { ResetPasswordSchema } from "@/lib/validators";
 import { useSearchParams } from "next/navigation";
 import { AxiosError } from "axios";
+import { LogoAnimated } from "@/components/LogoAnimated";
+import { motion } from "framer-motion";
 
 type ResetPasswordFormValues = z.infer<typeof ResetPasswordSchema>;
 
@@ -19,7 +21,11 @@ function ResetPasswordForm() {
   const token = searchParams.get("token");
 
   const [isSuccess, setIsSuccess] = useState(false);
-  const form = useForm<ResetPasswordFormValues>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ResetPasswordFormValues>({
     resolver: zodResolver(ResetPasswordSchema),
     defaultValues: {
       token: token || "",
@@ -27,12 +33,6 @@ function ResetPasswordForm() {
       confirmPassword: "",
     },
   });
-
-  const {
-    formState: { isSubmitting, errors },
-    register,
-    handleSubmit,
-  } = form;
 
   const onSubmit = async (values: ResetPasswordFormValues) => {
     try {
@@ -50,19 +50,20 @@ function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <div className="text-center">
-        <h3 className="text-xl font-bold text-red-600 dark:text-red-400">
+      <div className="grid gap-4 text-center">
+        <h1 className="text-3xl sm:text-4xl font-bold text-[var(--danger)]">
           Enlace Inválido
-        </h3>
-        <p className="mt-2 text-gray-600 dark:text-gray-300">
+        </h1>
+        <p className="text-sm opacity-70">
           El enlace para restablecer la contraseña es incorrecto o está
           incompleto. Por favor, solicita uno nuevo.
         </p>
         <Link
           href="/forgot-password"
-          className="mt-6 inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+          className="btn-primary justify-center mx-auto text-base sm:text-lg px-6 py-3 rounded-xl cursor-pointer"
         >
-          Solicitar Nuevo Enlace
+          <ArrowLeft size={20} />
+          <span className="ml-2">Solicitar Nuevo Enlace</span>
         </Link>
       </div>
     );
@@ -70,94 +71,110 @@ function ResetPasswordForm() {
 
   if (isSuccess) {
     return (
-      <div className="text-center">
-        <h3 className="text-xl font-bold text-green-600 dark:text-green-400">
+      <div className="grid gap-4 text-center">
+        <h1 className="text-3xl sm:text-4xl font-bold text-[var(--success)]">
           ¡Contraseña Actualizada!
-        </h3>
-        <p className="mt-2 text-gray-600 dark:text-gray-300">
+        </h1>
+        <p className="text-sm opacity-70">
           Tu contraseña ha sido cambiada exitosamente.
         </p>
         <Link
           href="/login"
-          className="mt-6 inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+          className="btn-primary justify-center mx-auto text-base sm:text-lg px-6 py-3 rounded-xl cursor-pointer"
         >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Ir a Iniciar Sesión
+          <CheckCircle size={20} />
+          <span className="ml-2">Ir a Iniciar Sesión</span>
         </Link>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <input type="hidden" {...register("token")} />
-      <div>
-        <label
-          htmlFor="newPassword"
-          className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-        >
-          Nueva Contraseña
-        </label>
-        <div className="mt-1">
+    <>
+      <h1 className="text-3xl sm:text-4xl font-bold">
+        Define tu Nueva Contraseña
+      </h1>
+      <p className="text-sm opacity-70">
+        Ingresa tu nueva contraseña dos veces para confirmarla.
+      </p>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 text-left">
+        <input type="hidden" {...register("token")} />
+
+        <div>
           <input
             id="newPassword"
             type="password"
+            placeholder="Nueva Contraseña"
             {...register("newPassword")}
-            className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+            className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-[var(--bg-dark)] text-[var(--fg-light)] dark:text-[var(--fg-dark)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
           />
           {errors.newPassword && (
-            <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+            <p className="mt-2 text-sm text-[var(--danger)]">
               {errors.newPassword.message}
             </p>
           )}
         </div>
-      </div>
-      <div>
-        <label
-          htmlFor="confirmPassword"
-          className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-        >
-          Confirmar Nueva Contraseña
-        </label>
-        <div className="mt-1">
+
+        <div>
           <input
             id="confirmPassword"
             type="password"
+            placeholder="Confirmar Nueva Contraseña"
             {...register("confirmPassword")}
-            className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+            className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-[var(--bg-dark)] text-[var(--fg-light)] dark:text-[var(--fg-dark)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
           />
           {errors.confirmPassword && (
-            <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+            <p className="mt-2 text-sm text-[var(--danger)]">
               {errors.confirmPassword.message}
             </p>
           )}
         </div>
-      </div>
-      <button
-        type="submit"
-        className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-        disabled={isSubmitting}
-      >
-        {isSubmitting ? "Actualizando..." : "Actualizar Contraseña"}
-      </button>
-    </form>
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="btn-primary justify-center mx-auto text-base sm:text-lg px-6 py-3 rounded-xl cursor-pointer"
+        >
+          <Key size={20} />
+          <span className="ml-2">
+            {isSubmitting ? "Actualizando..." : "Actualizar Contraseña"}
+          </span>
+        </button>
+      </form>
+    </>
   );
 }
 
 export default function ResetPasswordPage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-lg dark:bg-gray-800">
-        <div className="flex justify-center items-center mb-6">
-          <KeyRound className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-          <h2 className="ml-3 text-2xl font-bold text-gray-800 dark:text-white">
-            Define tu Nueva Contraseña
-          </h2>
-        </div>
-        <Suspense fallback={<div>Cargando...</div>}>
-          <ResetPasswordForm />
-        </Suspense>
+    <section className="min-h-[100svh] grid place-items-center overflow-x-hidden">
+      <div className="w-full max-w-5xl px-4 py-10 grid gap-10 text-center">
+        <motion.div
+          className="flex justify-center"
+          initial={{ opacity: 0, scale: 0.88 }}
+          animate={{ opacity: 1, scale: [1, 1.06, 1] }}
+          transition={{
+            opacity: { duration: 1.1, ease: "easeOut" },
+            scale: { duration: 3, repeat: Infinity, ease: "easeInOut" },
+          }}
+        >
+          <LogoAnimated />
+        </motion.div>
+
+        <motion.div
+          className="max-w-md mx-auto grid gap-4"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1.1, ease: "easeOut", delay: 0.5 }}
+        >
+          <Suspense
+            fallback={<div className="text-center opacity-70">Cargando...</div>}
+          >
+            <ResetPasswordForm />
+          </Suspense>
+        </motion.div>
       </div>
-    </div>
+    </section>
   );
 }

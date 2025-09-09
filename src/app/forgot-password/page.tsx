@@ -7,9 +7,11 @@ import { requestPasswordReset } from "@/services/password";
 import { toast } from "sonner";
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Mail } from "lucide-react";
 import { ForgotPasswordSchema } from "@/lib/validators";
 import { AxiosError } from "axios";
+import { LogoAnimated } from "@/components/LogoAnimated";
+import { motion } from "framer-motion";
 
 type ForgotPasswordFormValues = z.infer<typeof ForgotPasswordSchema>;
 
@@ -32,7 +34,6 @@ export default function ForgotPasswordPage() {
       toast.success(response.message);
       setIsSuccess(true);
     } catch (error) {
-      // 👇 CORRECCIÓN: Tipado explícito del error
       const axiosError = error as AxiosError<{ message: string }>;
       const message =
         axiosError?.response?.data?.message ||
@@ -42,79 +43,96 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-lg dark:bg-gray-800">
-        <h2 className="mb-6 text-center text-2xl font-bold text-gray-800 dark:text-white">
-          Restablecer Contraseña
-        </h2>
+    <section className="min-h-[100svh] grid place-items-center overflow-x-hidden">
+      <div className="w-full max-w-5xl px-4 py-10 grid gap-10 text-center">
+        <motion.div
+          className="flex justify-center"
+          initial={{ opacity: 0, scale: 0.88 }}
+          animate={{ opacity: 1, scale: [1, 1.06, 1] }}
+          transition={{
+            opacity: { duration: 1.1, ease: "easeOut" },
+            scale: { duration: 3, repeat: Infinity, ease: "easeInOut" },
+          }}
+        >
+          <LogoAnimated />
+        </motion.div>
 
-        {isSuccess ? (
-          <div className="text-center">
-            <p className="text-gray-600 dark:text-gray-300">
-              Hemos enviado las instrucciones para restablecer tu contraseña a
-              tu correo electrónico. Por favor, revisa tu bandeja de entrada (y
-              la carpeta de spam).
-            </p>
-            <Link
-              href="/login"
-              className="mt-6 inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Volver a Iniciar Sesión
-            </Link>
-          </div>
-        ) : (
-          <>
-            <p className="mb-6 text-center text-sm text-gray-600 dark:text-gray-400">
-              Ingresa tu correo electrónico y te enviaremos un enlace para
-              restablecer tu contraseña.
-            </p>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Correo Electrónico
-                </label>
-                <div className="mt-1">
+        <motion.div
+          className="max-w-md mx-auto grid gap-4"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1.1, ease: "easeOut", delay: 0.5 }}
+        >
+          <h1 className="text-3xl sm:text-4xl font-bold">
+            {isSuccess ? "¡Revisa tu correo!" : "Restablecer Contraseña"}
+          </h1>
+
+          {isSuccess ? (
+            <div className="grid gap-4 text-center">
+              <p className="text-sm opacity-70">
+                Hemos enviado las instrucciones para restablecer tu contraseña a
+                tu correo electrónico. Por favor, revisa tu bandeja de entrada
+                (y la carpeta de spam).
+              </p>
+              <Link
+                href="/login"
+                className="btn-primary justify-center mx-auto text-base sm:text-lg px-6 py-3 rounded-xl cursor-pointer"
+              >
+                <ArrowLeft size={20} />
+                <span className="ml-2">Volver a Iniciar Sesión</span>
+              </Link>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm opacity-70">
+                Ingresa tu correo electrónico y te enviaremos un enlace para
+                restablecer tu contraseña.
+              </p>
+
+              <form
+                onSubmit={handleSubmit(onSubmit)}
+                className="grid gap-4 text-left"
+              >
+                <div>
                   <input
                     id="email"
                     type="email"
                     autoComplete="email"
                     placeholder="tu@correo.com"
                     {...register("email")}
-                    className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+                    className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-[var(--bg-dark)] text-[var(--fg-light)] dark:text-[var(--fg-dark)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
                   />
                   {errors.email && (
-                    <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+                    <p className="mt-2 text-sm text-[var(--danger)]">
                       {errors.email.message}
                     </p>
                   )}
                 </div>
-              </div>
 
-              <button
-                type="submit"
-                className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={isSubmitting}
-              >
-                {isSubmitting
-                  ? "Enviando..."
-                  : "Enviar Enlace de Restablecimiento"}
-              </button>
-            </form>
-            <div className="mt-4 text-center">
-              <Link
-                href="/login"
-                className="text-sm text-blue-600 hover:underline dark:text-blue-400"
-              >
-                ¿Recordaste tu contraseña? Inicia sesión
-              </Link>
-            </div>
-          </>
-        )}
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="btn-primary justify-center mx-auto text-base sm:text-lg px-6 py-3 rounded-xl cursor-pointer"
+                >
+                  <Mail size={20} />
+                  <span className="ml-2">
+                    {isSubmitting ? "Enviando..." : "Enviar Enlace"}
+                  </span>
+                </button>
+              </form>
+
+              <p className="text-sm opacity-70">
+                <Link
+                  href="/login"
+                  className="text-[var(--accent)] hover:underline"
+                >
+                  ¿Recordaste tu contraseña? Inicia sesión
+                </Link>
+              </p>
+            </>
+          )}
+        </motion.div>
       </div>
-    </div>
+    </section>
   );
 }
