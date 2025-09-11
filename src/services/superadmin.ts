@@ -6,6 +6,10 @@ import type {
   User,
   Assignment,
   ActiveSession,
+  UrbanizationBulkImportResult,
+  UrbanizationBulkDeleteResult,
+  SirenBulkImportResult,
+  SirenBulkDeleteResult,
 } from "@/types/superadmin";
 
 /* ------------------ Tipos y helpers seguros ------------------ */
@@ -17,13 +21,10 @@ export type Paginated<T> = {
   pageSize: number;
 };
 
-// Objeto “abierto” de respuesta de API
 type ApiObj = Record<string, unknown>;
-
 const isObj = (v: unknown): v is ApiObj => typeof v === "object" && v !== null;
 const asObj = (v: unknown): ApiObj => (isObj(v) ? v : {});
 
-// Devuelve el primer valor definido entre varias claves
 function pick(o: ApiObj, ...keys: string[]): unknown {
   for (const k of keys) {
     const v = o[k];
@@ -52,39 +53,27 @@ const toOnOff = (v: unknown, fallback: "ON" | "OFF" = "OFF"): "ON" | "OFF" => {
 /* ------------------ utils ------------------ */
 function normalizeList<T>(data: unknown, fallbackPageSize = 50): Paginated<T> {
   if (Array.isArray(data)) {
-    const items = data as unknown[] as T[];
-    const size = items.length || fallbackPageSize;
-    return { items, total: items.length, page: 1, pageSize: size };
+    const items = data as T[];
+    return {
+      items,
+      total: items.length,
+      page: 1,
+      pageSize: items.length || fallbackPageSize,
+    };
   }
 
   const obj = asObj(data);
   const rawItems = (obj.items ?? obj.data ?? obj.rows) as unknown;
   const items: T[] = Array.isArray(rawItems) ? (rawItems as T[]) : [];
 
-  const total =
-    typeof obj.total === "number"
-      ? obj.total
-      : typeof obj.count === "number"
-      ? (obj.count as number)
-      : items.length;
+  const total = toNum(pick(obj, "total", "count"), items.length);
+  const limit = toNum(
+    pick(obj, "pageSize", "limit"),
+    items.length || fallbackPageSize
+  );
+  const page = toNum(pick(obj, "page"), 1);
 
-  const limit =
-    typeof obj.pageSize === "number"
-      ? (obj.pageSize as number)
-      : typeof obj.limit === "number"
-      ? (obj.limit as number)
-      : items.length || fallbackPageSize;
-
-  const page =
-    typeof obj.page === "number"
-      ? (obj.page as number)
-      : typeof obj.offset === "number"
-      ? Math.floor((obj.offset as number) / (limit || fallbackPageSize)) + 1
-      : 1;
-
-  const pageSize = limit || fallbackPageSize;
-
-  return { items, total, page, pageSize };
+  return { items, total, page, pageSize: limit };
 }
 
 /* ------------------ mappers ------------------ */
@@ -92,22 +81,16 @@ function normalizeList<T>(data: unknown, fallbackPageSize = 50): Paginated<T> {
 function mapUrbanization(x: ApiObj): Urbanizacion {
   return {
     id: toStr(pick(x, "id")),
-    name: toStr(pick(x, "name", "nombre"), ""),
-    maxUsers: toNum(pick(x, "maxUsers", "max_users"), 0),
-    createdAt: toStr(
-      pick(x, "createdAt", "created_at"),
-      new Date().toISOString()
-    ),
-    updatedAt: toStr(
-      pick(x, "updatedAt", "updated_at"),
-      new Date().toISOString()
-    ),
+    name: toStr(pick(x, "name", "nombre")),
+    maxUsers: toNum(pick(x, "maxUsers", "max_users")),
+    createdAt: toStr(pick(x, "createdAt", "created_at")),
+    updatedAt: toStr(pick(x, "updatedAt", "updated_at")),
   };
 }
 
 function mapUser(x: ApiObj): User {
-  const first = toStr(pick(x, "firstName"), "").trim();
-  const last = toStr(pick(x, "lastName"), "").trim();
+  const first = toStr(pick(x, "firstName"));
+  const last = toStr(pick(x, "lastName"));
   const full = [first, last].filter(Boolean).join(" ").trim();
 
   const role = toStr(pick(x, "role"), "RESIDENTE") as User["role"];
@@ -123,79 +106,61 @@ function mapUser(x: ApiObj): User {
       : Number(sessionLimit);
 
   const kc = pick(x, "keycloakId");
-
   const urb = pick(x, "urbanizationId");
 
   return {
     id: toStr(pick(x, "id")),
     keycloakId: kc != null ? toStr(kc) : null,
-    name: full || toStr(pick(x, "username"), ""),
-    email: toStr(pick(x, "email"), ""),
-    username: toStr(pick(x, "username"), ""),
+    name: full || toStr(pick(x, "username")),
+    email: toStr(pick(x, "email")),
+    username: toStr(pick(x, "username")),
     role,
     alicuota: toBool(pick(x, "alicuota"), true),
     urbanizacionId: urb != null ? toStr(urb) : null,
-    createdAt: toStr(
-      pick(x, "createdAt", "created_at"),
-      new Date().toISOString()
-    ),
+    createdAt: toStr(pick(x, "createdAt", "created_at")),
     sessionLimit,
     sessions,
   };
 }
 
 function mapSiren(x: ApiObj): Siren {
-  const urb = pick(
-    x,
-    "urbanizationId",
-    "urbanizacionId",
-    "urbanization_id",
-    "urbanizacion_id"
-  );
-  const ip = pick(x, "ip");
-  const last = pick(x, "lastSeen", "updatedAt");
-
+  const urb = pick(x, "urbanizationId", "urbanizacionId");
   return {
     id: toStr(pick(x, "id")),
-    deviceId: toStr(pick(x, "deviceId", "device_id"), ""),
-    alias: toStr(pick(x, "deviceId", "device_id"), ""),
+    deviceId: toStr(pick(x, "deviceId")),
+    alias: toStr(pick(x, "deviceId")),
     urbanizacionId: urb != null ? toStr(urb) : null,
-    online: toBool(pick(x, "online"), false),
-    relay: toOnOff(pick(x, "relay"), "OFF"),
-    siren: toOnOff(pick(x, "sirenState", "relay"), "OFF"),
-    ip: typeof ip === "string" ? ip : null,
-    lastSeenAt:
-      typeof last === "string"
-        ? last
-        : last instanceof Date
-        ? last.toISOString()
-        : null,
+    online: toBool(pick(x, "online")),
+    relay: toOnOff(pick(x, "relay")),
+    siren: toOnOff(pick(x, "sirenState")),
+    ip: typeof pick(x, "ip") === "string" ? (pick(x, "ip") as string) : null,
+    lat: toNum(pick(x, "lat")),
+    lng: toNum(pick(x, "lng")),
+    lastSeenAt: toStr(pick(x, "lastSeen", "updatedAt")),
+    apiKey: toStr(pick(x, "apiKey")),
   };
 }
 
 function mapAssignment(x: ApiObj): Assignment {
   return {
     id: toStr(pick(x, "id")),
-    userId: toStr(pick(x, "userId", "user_id"), ""),
-    sirenId: toStr(pick(x, "sirenId", "siren_id"), ""),
-    createdAt: toStr(
-      pick(x, "createdAt", "created_at"),
-      new Date().toISOString()
-    ),
+    userId: toStr(pick(x, "userId", "user_id")),
+    sirenId: toStr(pick(x, "sirenId", "siren_id")),
+    createdAt: toStr(pick(x, "createdAt", "created_at")),
   };
 }
 
 function mapActiveSession(x: ApiObj): ActiveSession {
   return {
     id: toStr(pick(x, "id")),
-    userId: toStr(pick(x, "userId"), ""),
-    username: toStr(pick(x, "username"), ""),
-    ipAddress: (() => {
-      const v = pick(x, "ipAddress");
-      return typeof v === "string" ? v : null;
-    })(),
-    start: toNum(pick(x, "start"), 0),
-    lastAccess: toNum(pick(x, "lastAccess"), 0),
+    userId: toStr(pick(x, "userId")),
+    username: toStr(pick(x, "username")),
+    ipAddress:
+      typeof pick(x, "ipAddress") === "string"
+        ? (pick(x, "ipAddress") as string)
+        : null,
+    start: toNum(pick(x, "start")),
+    lastAccess: toNum(pick(x, "lastAccess")),
     clients: (pick(x, "clients") as Record<string, string> | null) ?? null,
   };
 }
@@ -216,8 +181,7 @@ export async function sa_listUrbanizaciones(): Promise<
 /* ------------------ USUARIOS por urbanización ------------------ */
 
 export async function sa_listUsersByUrbanizacion(
-  urbanizacionId: string,
-  _params?: { q?: string; page?: number; pageSize?: number }
+  urbanizacionId: string
 ): Promise<Paginated<User>> {
   const { data } = await api.get("/users");
   const normalized = normalizeList<unknown>(data, 50);
@@ -236,8 +200,7 @@ export async function sa_listUsersByUrbanizacion(
 /* ------------------ SIRENAS por urbanización ------------------ */
 
 export async function sa_listSirensByUrbanizacion(
-  urbanizacionId: string,
-  _params?: { q?: string; page?: number; pageSize?: number }
+  urbanizacionId: string
 ): Promise<Paginated<Siren>> {
   const { data } = await api.get("/sirens");
   const normalized = normalizeList<unknown>(data, 50);
@@ -253,11 +216,10 @@ export async function sa_listSirensByUrbanizacion(
   };
 }
 
-/* -------- ASIGNACIONES (agregador con endpoints existentes) -------- */
+/* -------- ASIGNACIONES -------- */
 
 export async function sa_listAssignmentsByUrbanizacion(
-  urbanizacionId: string,
-  _params?: { page?: number; pageSize?: number }
+  urbanizacionId: string
 ): Promise<Paginated<Assignment>> {
   const [{ items: users }, { items: sirens }] = await Promise.all([
     sa_listUsersByUrbanizacion(urbanizacionId),
@@ -267,37 +229,21 @@ export async function sa_listAssignmentsByUrbanizacion(
   const results: unknown[] = [];
 
   async function fetchByUsers() {
-    const limit = 8;
-    const queue = users.map((u) => u.id);
-    async function worker() {
-      while (queue.length) {
-        const userId = queue.shift()!;
-        try {
-          const { data } = await api.get(`/assignments/user/${userId}`);
-          if (Array.isArray(data)) results.push(...(data as unknown[]));
-        } catch {}
-      }
+    for (const u of users) {
+      try {
+        const { data } = await api.get(`/assignments/user/${u.id}`);
+        if (Array.isArray(data)) results.push(...(data as unknown[]));
+      } catch {}
     }
-    await Promise.all(
-      Array.from({ length: Math.min(limit, users.length) }, worker)
-    );
   }
 
   async function fetchBySirens() {
-    const limit = 8;
-    const queue = sirens.map((s) => s.id);
-    async function worker() {
-      while (queue.length) {
-        const sirenId = queue.shift()!;
-        try {
-          const { data } = await api.get(`/assignments/siren/${sirenId}`);
-          if (Array.isArray(data)) results.push(...(data as unknown[]));
-        } catch {}
-      }
+    for (const s of sirens) {
+      try {
+        const { data } = await api.get(`/assignments/siren/${s.id}`);
+        if (Array.isArray(data)) results.push(...(data as unknown[]));
+      } catch {}
     }
-    await Promise.all(
-      Array.from({ length: Math.min(limit, sirens.length) }, worker)
-    );
   }
 
   if (users.length > 0) await fetchByUsers();
@@ -321,7 +267,7 @@ export async function sa_listAssignmentsByUrbanizacion(
   };
 }
 
-/* ------------------ SESIONES ACTIVAS por urbanización ------------------ */
+/* ------------------ SESIONES ------------------ */
 
 export async function sa_listActiveSessionsByUrbanizacion(
   urbanizacionId: string
@@ -330,24 +276,12 @@ export async function sa_listActiveSessionsByUrbanizacion(
   if (!users.length) return { items: [], total: 0, page: 1, pageSize: 50 };
 
   const results: unknown[] = [];
-  const limit = 8;
-  const queue = users.map((u) => u.id);
-
-  async function worker() {
-    while (queue.length) {
-      const userId = queue.shift()!;
-      try {
-        const { data } = await api.get(`/users/${userId}/sessions`);
-        if (Array.isArray(data)) results.push(...(data as unknown[]));
-      } catch {
-        // ignoramos error individual
-      }
-    }
+  for (const u of users) {
+    try {
+      const { data } = await api.get(`/users/${u.id}/sessions`);
+      if (Array.isArray(data)) results.push(...(data as unknown[]));
+    } catch {}
   }
-
-  await Promise.all(
-    Array.from({ length: Math.min(limit, users.length) }, worker)
-  );
 
   const mapped = results.map((r) => mapActiveSession(asObj(r)));
   return {
@@ -356,4 +290,127 @@ export async function sa_listActiveSessionsByUrbanizacion(
     page: 1,
     pageSize: mapped.length || 50,
   };
+}
+
+/* ------------------ CRUD Urbanizaciones ------------------ */
+
+export async function sa_createUrbanizacion(input: {
+  name: string;
+  maxUsers?: number;
+}): Promise<Urbanizacion> {
+  const { data } = await api.post("/urbanizations", input);
+  return mapUrbanization(data);
+}
+
+export async function sa_updateUrbanizacion(
+  id: string,
+  input: { name?: string; maxUsers?: number }
+): Promise<Urbanizacion> {
+  const { data } = await api.put(`/urbanizations/${id}`, input);
+  return mapUrbanization(data);
+}
+
+export async function sa_deleteUrbanizacion(
+  id: string
+): Promise<{ id: string }> {
+  const { data } = await api.delete(`/urbanizations/${id}`);
+  return { id: String(data?.id ?? id) };
+}
+
+/* ------------------ BULK Urbanizaciones ------------------ */
+
+export async function sa_bulkImportUrbanizaciones(
+  file: File,
+  dryRun = true
+): Promise<UrbanizationBulkImportResult> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const { data } = await api.post(
+    `/urbanizations/bulk/import?dryRun=${dryRun}`,
+    fd,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
+  return data as UrbanizationBulkImportResult;
+}
+
+export async function sa_bulkDeleteUrbanizaciones(
+  file: File
+): Promise<UrbanizationBulkDeleteResult> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const { data } = await api.post(`/urbanizations/bulk/delete`, fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data as UrbanizationBulkDeleteResult;
+}
+
+export async function sa_downloadUrbanizacionesTemplate(): Promise<Blob> {
+  const { data } = await api.get(`/urbanizations/bulk/template`, {
+    responseType: "blob",
+  });
+  return data as Blob;
+}
+
+/* ------------------ CRUD Sirenas ------------------ */
+
+export async function sa_createSiren(input: {
+  deviceId: string;
+  apiKey: string;
+  urbanizationId: string;
+  lat?: number;
+  lng?: number;
+}): Promise<Siren> {
+  const { data } = await api.post("/sirens", input);
+  return mapSiren(data);
+}
+
+export async function sa_updateSiren(
+  id: string,
+  input: Partial<{
+    deviceId: string;
+    apiKey: string;
+    lat: number;
+    lng: number;
+    urbanizationId: string;
+  }>
+): Promise<Siren> {
+  const { data } = await api.put(`/sirens/${id}`, input);
+  return mapSiren(data);
+}
+
+export async function sa_deleteSiren(id: string): Promise<{ id: string }> {
+  const { data } = await api.delete(`/sirens/${id}`);
+  return { id: String(data?.id ?? id) };
+}
+
+/* ------------------ BULK Sirenas ------------------ */
+
+export async function sa_bulkImportSirens(
+  file: File,
+  dryRun = true
+): Promise<SirenBulkImportResult> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const { data } = await api.post(`/sirens/bulk/import?dryRun=${dryRun}`, fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data as SirenBulkImportResult;
+}
+
+export async function sa_bulkDeleteSirens(
+  file: File
+): Promise<SirenBulkDeleteResult> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const { data } = await api.post(`/sirens/bulk/delete`, fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data as SirenBulkDeleteResult;
+}
+
+export async function sa_downloadSirensTemplate(): Promise<Blob> {
+  const { data } = await api.get(`/sirens/bulk/template`, {
+    responseType: "blob",
+  });
+  return data as Blob;
 }
