@@ -34,23 +34,14 @@ import type {
   ActiveSession,
 } from "@/types/superadmin";
 
-type TabKey =
-  | "resumen"
-  | "sirenas"
-  | "usuarios"
-  | "asignaciones"
-  | "sesiones"
-  | "bulk";
-function isTabKey(v: string): v is TabKey {
-  return [
-    "resumen",
-    "sirenas",
-    "usuarios",
-    "asignaciones",
-    "sesiones",
-    "bulk",
-  ].includes(v);
-}
+/* Tipos y componentes modulares */
+import type { TabKey } from "./types";
+import { isTabKey } from "./types";
+import ContentTabs from "./SuperAdminTabs";
+import CardShell from "./CardShell";
+import MetricCard from "./MetricCard";
+
+/* ----------------- helpers ----------------- */
 function formatDateTime(ms: number | string | null | undefined) {
   const n = typeof ms === "string" ? Number(ms) : (ms as number | undefined);
   if (!n || Number.isNaN(n)) return "—";
@@ -61,6 +52,42 @@ function formatDateTime(ms: number | string | null | undefined) {
   }
 }
 
+/* ----------------- Header (usa nombre) ----------------- */
+function HeaderBar({ selectedName }: { selectedName: string | null }) {
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+      <div>
+        <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+          Panel SUPERADMIN
+        </h1>
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          Gestiona urbanizaciones, sirenas, usuarios y asignaciones.
+          {selectedName ? `  |  Seleccionada: ${selectedName}` : ""}
+        </p>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          disabled
+          className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900 px-3 py-2 text-sm opacity-60 cursor-not-allowed text-neutral-700 dark:text-neutral-300"
+          title="Próxima fase"
+        >
+          <Plus className="size-4" />
+          Crear
+        </button>
+        <button
+          disabled
+          className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900 px-3 py-2 text-sm opacity-60 cursor-not-allowed text-neutral-700 dark:text-neutral-300"
+          title="Próxima fase"
+        >
+          <Upload className="size-4" />
+          Bulk (Dry-run)
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ----------------- Dashboard ----------------- */
 export default function SuperAdminDashboard() {
   const {
     selectedUrbanizacionId,
@@ -113,6 +140,11 @@ export default function SuperAdminDashboard() {
         )
       : urbanizaciones;
   }, [urbanizaciones, searchUrbanizacion]);
+
+  const selectedUrbanizacionName = useMemo(() => {
+    const u = urbanizaciones.find((x) => x.id === selectedUrbanizacionId);
+    return u?.name ?? null;
+  }, [urbanizaciones, selectedUrbanizacionId]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 lg:gap-6">
@@ -200,117 +232,19 @@ export default function SuperAdminDashboard() {
 
       {/* Main */}
       <main className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 lg:p-4 shadow-sm dark:shadow-none text-neutral-900 dark:text-neutral-100">
-        <Topbar />
+        <HeaderBar selectedName={selectedUrbanizacionName} />
         <ContentTabs active={active} onChange={goTab} />
+
+        {/* Contenido de las pestañas */}
+        <div className="mt-3">
+          {active === "resumen" && <ResumenTab />}
+          {active === "sirenas" && <SirenasTab />}
+          {active === "usuarios" && <UsuariosTab />}
+          {active === "asignaciones" && <AsignacionesTab />}
+          {active === "sesiones" && <SesionesTab />}
+          {active === "bulk" && <BulkTab />}
+        </div>
       </main>
-    </div>
-  );
-}
-
-function Topbar() {
-  const { selectedUrbanizacionId } = useSuperAdminStore();
-  return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-      <div>
-        <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
-          Panel SUPERADMIN
-        </h1>
-        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          Gestiona urbanizaciones, sirenas, usuarios y asignaciones.
-          {selectedUrbanizacionId
-            ? `  |  Seleccionada: ${selectedUrbanizacionId}`
-            : ""}
-        </p>
-      </div>
-      <div className="flex items-center gap-2">
-        <button
-          disabled
-          className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900 px-3 py-2 text-sm opacity-60 cursor-not-allowed text-neutral-700 dark:text-neutral-300"
-          title="Próxima fase"
-        >
-          <Plus className="size-4" />
-          Crear
-        </button>
-        <button
-          disabled
-          className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900 px-3 py-2 text-sm opacity-60 cursor-not-allowed text-neutral-700 dark:text-neutral-300"
-          title="Próxima fase"
-        >
-          <Upload className="size-4" />
-          Bulk (Dry-run)
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function ContentTabs({
-  active,
-  onChange,
-}: {
-  active: TabKey;
-  onChange: (t: TabKey) => void;
-}) {
-  const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
-    {
-      key: "resumen",
-      label: "Resumen",
-      icon: <Building2 className="size-4" />,
-    },
-    {
-      key: "sirenas",
-      label: "Sirenas",
-      icon: <SirenIcon className="size-4" />,
-    },
-    { key: "usuarios", label: "Usuarios", icon: <Users className="size-4" /> },
-    {
-      key: "asignaciones",
-      label: "Asignaciones",
-      icon: <LinkIcon className="size-4" />,
-    },
-    { key: "sesiones", label: "Sesiones", icon: <Clock className="size-4" /> }, // NUEVO
-    { key: "bulk", label: "Bulk", icon: <Upload className="size-4" /> },
-  ];
-
-  return (
-    <div>
-      <div className="flex gap-1 overflow-auto pb-2">
-        {tabs.map((t) => {
-          const isActive = t.key === active;
-          return (
-            <button
-              key={t.key}
-              onClick={() => onChange(t.key)}
-              className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm whitespace-nowrap ${
-                isActive
-                  ? "border-[var(--brand-primary)] bg-[color-mix(in_oklab,var(--brand-primary)_10%,white)] dark:bg-[color-mix(in_oklab,var(--brand-primary)_22%,black)]"
-                  : "border-neutral-200 dark:border-neutral-800 bg-white hover:bg-neutral-50 dark:bg-neutral-950 dark:hover:bg-neutral-900"
-              } cursor-pointer text-neutral-900 dark:text-neutral-100`}
-              aria-selected={isActive}
-            >
-              {t.icon}
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-3">
-        {active === "resumen" && <ResumenTab />}
-        {active === "sirenas" && <SirenasTab />}
-        {active === "usuarios" && <UsuariosTab />}
-        {active === "asignaciones" && <AsignacionesTab />}
-        {active === "sesiones" && <SesionesTab />} {/* NUEVO */}
-        {active === "bulk" && <BulkTab />}
-      </div>
-    </div>
-  );
-}
-
-function CardShell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 p-4 bg-white dark:bg-neutral-900 shadow-xs dark:shadow-none text-neutral-900 dark:text-neutral-100">
-      {children}
     </div>
   );
 }
@@ -395,25 +329,6 @@ function ResumenTab() {
         />
       </div>
     </CardShell>
-  );
-}
-
-function MetricCard({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: number | string;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 p-3 bg-white dark:bg-neutral-900">
-      <div className="text-xs text-neutral-600 dark:text-neutral-400 flex items-center gap-2">
-        {icon} {label}
-      </div>
-      <div className="mt-1 text-2xl font-semibold">{value}</div>
-    </div>
   );
 }
 
@@ -616,8 +531,9 @@ function UsuariosTab() {
                   {u.name || u.username}
                 </div>
                 <div className="text-xs flex items-center gap-2 text-neutral-600 dark:text-neutral-400">
-                  <Mail className="size-3" />{" "}
+                  <Mail className="size-3" />
                   <span className="truncate">{u.email}</span>
+                  <span>· @{u.username}</span> {/* 👈 añadido username */}
                   <span>· rol {u.role}</span>
                   <span>· alícuota {u.alicuota ? "✓" : "✕"}</span>
                   <span>· sesiones {u.sessions}</span>
@@ -863,7 +779,7 @@ function SesionesTab() {
   const users = usersQ.data?.items ?? [];
   const sessions = sessionsQ.data?.items ?? [];
 
-  // 👇 índice por keycloakId para mostrar nombre completo
+  // índice por keycloakId para mostrar nombre completo
   const userByKC = useMemo(() => {
     const m = new Map<string, User>();
     for (const u of users) {
