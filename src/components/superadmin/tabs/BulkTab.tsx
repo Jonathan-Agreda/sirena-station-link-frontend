@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Upload } from "lucide-react";
+import {
+  Upload,
+  Download,
+  FileUp,
+  FileX,
+  ToggleLeft,
+  ToggleRight,
+} from "lucide-react";
 import {
   sa_bulkImportUrbanizaciones,
   sa_bulkDeleteUrbanizaciones,
@@ -18,18 +25,7 @@ import type {
   SirenBulkDeleteResult,
 } from "@/types/superadmin";
 import CardShell from "../CardShell";
-
-function errMsg(e: unknown) {
-  if (typeof e === "string") return e;
-  if (typeof e === "object" && e) {
-    const r = e as {
-      message?: string;
-      response?: { data?: { message?: string } };
-    };
-    return r.response?.data?.message || r.message || "Ocurrió un error";
-  }
-  return "Ocurrió un error";
-}
+import { errMsg } from "../utils";
 
 type Props = {
   toasts: {
@@ -40,6 +36,7 @@ type Props = {
 };
 
 export default function BulkTab({ toasts }: Props) {
+  // --- Urbanizaciones ---
   const [fileImportUrb, setFileImportUrb] = useState<File | null>(null);
   const [fileDeleteUrb, setFileDeleteUrb] = useState<File | null>(null);
   const [lastImportUrb, setLastImportUrb] =
@@ -48,6 +45,7 @@ export default function BulkTab({ toasts }: Props) {
     useState<UrbanizationBulkDeleteResult | null>(null);
   const [dryRunUrb, setDryRunUrb] = useState<boolean>(true);
 
+  // --- Sirenas ---
   const [fileImportSir, setFileImportSir] = useState<File | null>(null);
   const [fileDeleteSir, setFileDeleteSir] = useState<File | null>(null);
   const [lastImportSir, setLastImportSir] =
@@ -58,6 +56,7 @@ export default function BulkTab({ toasts }: Props) {
 
   const queryClient = useQueryClient();
 
+  // --- Mutations Urbanizaciones ---
   const importMutUrb = useMutation({
     mutationFn: (p: { file: File; dry: boolean }) =>
       sa_bulkImportUrbanizaciones(p.file, p.dry),
@@ -81,6 +80,7 @@ export default function BulkTab({ toasts }: Props) {
     onError: (e) => toasts.error(errMsg(e)),
   });
 
+  // --- Mutations Sirenas ---
   const importMutSir = useMutation({
     mutationFn: (p: { file: File; dry: boolean }) =>
       sa_bulkImportSirens(p.file, p.dry),
@@ -104,6 +104,7 @@ export default function BulkTab({ toasts }: Props) {
     onError: (e) => toasts.error(errMsg(e)),
   });
 
+  // --- Plantillas ---
   const onDownloadTemplateUrb = async () => {
     try {
       const blob = await sa_downloadUrbanizacionesTemplate();
@@ -138,6 +139,7 @@ export default function BulkTab({ toasts }: Props) {
     }
   };
 
+  // --- Helpers para pill ---
   const statusPill = (
     s:
       | UrbanizationBulkImportResult["report"][number]["status"]
@@ -175,33 +177,37 @@ export default function BulkTab({ toasts }: Props) {
   return (
     <CardShell>
       {/* ================= Urbanizaciones ================= */}
-      <h3 className="font-medium mb-2 flex items-center gap-2 text-neutral-900 dark:text-neutral-100">
-        <Upload className="size-4" /> Carga masiva de urbanizaciones
+      <h3 className="font-medium mb-4 flex items-center gap-2 text-neutral-900 dark:text-neutral-100">
+        <Upload className="size-5" /> Carga masiva de urbanizaciones
       </h3>
-      <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-3">
+      <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-5">
         Usa Excel (.xlsx). El primer paso es un <b>Dry-run</b> de validación;
         luego confirma para escribir en BD.
       </p>
 
-      <div className="grid lg:grid-cols-2 gap-3">
+      <div className="grid lg:grid-cols-2 gap-6">
         {/* Importar Urbanizaciones */}
-        <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 bg-white dark:bg-neutral-900">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-medium">Importar / Actualizar</div>
+        <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 p-4 bg-white dark:bg-neutral-900">
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-neutral-200 dark:border-neutral-800">
+            <div className="text-base font-medium flex items-center gap-2">
+              <FileUp className="size-4 text-[var(--brand-primary)]" /> Importar
+              / Actualizar
+            </div>
             <button
               onClick={onDownloadTemplateUrb}
-              className="text-xs px-2 py-1 rounded-lg border hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer text-neutral-700 dark:text-neutral-300"
             >
-              Descargar plantilla
+              <Download className="size-3.5" /> Descargar plantilla
             </button>
           </div>
 
-          <div className="mt-3 space-y-3">
-            <label className="flex flex-col items-start gap-2 cursor-pointer">
-              <span className="px-3 py-2 rounded-xl border border-dashed text-sm">
+          <div className="mt-4 space-y-4">
+            <label className="flex items-center gap-3 cursor-pointer p-2 border border-dashed border-neutral-300 dark:border-neutral-700 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-850 transition-colors">
+              <FileUp className="size-5 text-neutral-500 dark:text-neutral-400" />
+              <span className="text-sm truncate flex-1 text-neutral-700 dark:text-neutral-300">
                 {fileImportUrb
-                  ? `📄 ${fileImportUrb.name}`
-                  : "Seleccionar archivo .xlsx"}
+                  ? `Archivo seleccionado: ${fileImportUrb.name}`
+                  : "Seleccionar archivo .xlsx para importar"}
               </span>
               <input
                 type="file"
@@ -214,28 +220,37 @@ export default function BulkTab({ toasts }: Props) {
               />
             </label>
 
-            <div className="flex items-center gap-2">
-              <label className="text-sm">Modo</label>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                Modo de ejecución:
+              </span>
               <button
                 onClick={() => setDryRunUrb((d) => !d)}
-                className={`text-xs px-2 py-1 rounded-lg border ${
+                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer ${
                   dryRunUrb
-                    ? "bg-amber-100 dark:bg-amber-900/30"
-                    : "bg-emerald-100 dark:bg-emerald-900/30"
+                    ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-700"
+                    : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700"
                 }`}
               >
-                {dryRunUrb ? "Dry-run" : "Confirmar"}
+                {dryRunUrb ? (
+                  <ToggleRight className="size-4" />
+                ) : (
+                  <ToggleLeft className="size-4" />
+                )}
+                {dryRunUrb
+                  ? "Dry-run (Simulación)"
+                  : "Confirmar (Escribir en BD)"}
               </button>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 disabled={!fileImportUrb || importMutUrb.isPending}
                 onClick={() =>
                   fileImportUrb &&
                   importMutUrb.mutate({ file: fileImportUrb, dry: dryRunUrb })
                 }
-                className="px-3 py-2 rounded-xl border text-sm"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--brand-primary)] text-white text-sm font-medium hover:brightness-110 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {importMutUrb.isPending
                   ? "Procesando…"
@@ -251,7 +266,7 @@ export default function BulkTab({ toasts }: Props) {
                     fileImportUrb &&
                     importMutUrb.mutate({ file: fileImportUrb, dry: false })
                   }
-                  className="px-3 py-2 rounded-xl border text-sm"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-sm font-medium hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Confirmar con el mismo archivo
                 </button>
@@ -259,37 +274,54 @@ export default function BulkTab({ toasts }: Props) {
             </div>
 
             {lastImportUrb && (
-              <div className="mt-3 text-sm">
-                Procesados: {lastImportUrb.processed} · A crear:{" "}
-                {lastImportUrb.toCreate} · A actualizar:{" "}
-                {lastImportUrb.toUpdate}
-                <div className="max-h-56 overflow-auto mt-2 border rounded-lg">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr>
-                        <th className="p-2">name</th>
-                        <th className="p-2">status</th>
-                        <th className="p-2">error</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {lastImportUrb.report.map((r, i) => (
-                        <tr key={i} className="border-t">
-                          <td className="p-2">{r.name}</td>
-                          <td className="p-2">
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[11px] ${statusPill(
-                                r.status
-                              )}`}
-                            >
-                              {r.status}
-                            </span>
-                          </td>
-                          <td className="p-2 text-red-600">{r.error ?? ""}</td>
+              <div className="mt-4 p-4 rounded-xl bg-neutral-900 dark:bg-neutral-850 border border-neutral-200 dark:border-neutral-700">
+                <p className="text-sm font-semibold mb-3 text-neutral-800 dark:text-neutral-200">
+                  Resumen: Procesados: {lastImportUrb.processed} • A crear:{" "}
+                  {lastImportUrb.toCreate} • A actualizar:{" "}
+                  {lastImportUrb.toUpdate}
+                </p>
+                <div className="bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+                  <div className="max-h-64 overflow-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-neutral-100 dark:bg-neutral-800 sticky top-0 z-10">
+                        <tr>
+                          <th className="text-left px-4 py-3 font-semibold text-neutral-700 dark:text-neutral-300 border-b border-neutral-200 dark:border-neutral-700">
+                            Nombre
+                          </th>
+                          <th className="text-left px-4 py-3 font-semibold text-neutral-700 dark:text-neutral-300 border-b border-neutral-200 dark:border-neutral-700 w-32">
+                            Estado
+                          </th>
+                          <th className="text-left px-4 py-3 font-semibold text-neutral-700 dark:text-neutral-300 border-b border-neutral-200 dark:border-neutral-700">
+                            Error
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {lastImportUrb.report.map((r, i) => (
+                          <tr
+                            key={i}
+                            className="border-b border-neutral-100 dark:border-neutral-800 hover:bg-neutral-200/50 cursor-pointer dark:hover:bg-neutral-850/50 transition-colors"
+                          >
+                            <td className="px-4 py-3 text-neutral-800 dark:text-neutral-200 font-medium">
+                              {r.name}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${statusPill(
+                                  r.status
+                                )}`}
+                              >
+                                {r.status.replace("_", " ")}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-red-600 dark:text-red-400 text-xs">
+                              {r.error ?? "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}
@@ -297,14 +329,20 @@ export default function BulkTab({ toasts }: Props) {
         </div>
 
         {/* Borrado Urbanizaciones */}
-        <div className="rounded-xl border p-3 bg-white dark:bg-neutral-900">
-          <div className="text-sm font-medium">Borrado masivo (por nombre)</div>
-          <div className="mt-3 space-y-3">
-            <label className="flex flex-col items-start gap-2 cursor-pointer">
-              <span className="px-3 py-2 rounded-xl border border-dashed text-sm">
+        <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 p-4 bg-white dark:bg-neutral-900">
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-neutral-200 dark:border-neutral-800">
+            <div className="text-base font-medium flex items-center gap-2">
+              <FileX className="size-4 text-red-500" /> Borrado masivo (por
+              nombre)
+            </div>
+          </div>
+          <div className="mt-4 space-y-4">
+            <label className="flex items-center gap-3 cursor-pointer p-2 border border-dashed border-neutral-300 dark:border-neutral-700 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-850 transition-colors">
+              <FileUp className="size-5 text-neutral-500 dark:text-neutral-400" />
+              <span className="text-sm truncate flex-1 text-neutral-700 dark:text-neutral-300">
                 {fileDeleteUrb
-                  ? `📄 ${fileDeleteUrb.name}`
-                  : "Seleccionar archivo .xlsx"}
+                  ? `Archivo seleccionado: ${fileDeleteUrb.name}`
+                  : "Seleccionar archivo .xlsx para eliminar"}
               </span>
               <input
                 type="file"
@@ -322,41 +360,59 @@ export default function BulkTab({ toasts }: Props) {
               onClick={() =>
                 fileDeleteUrb && deleteMutUrb.mutate(fileDeleteUrb)
               }
-              className="px-3 py-2 rounded-xl border text-sm"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {deleteMutUrb.isPending ? "Eliminando…" : "Eliminar desde Excel"}
             </button>
 
             {lastDeleteUrb && (
-              <div className="mt-3 text-sm">
-                Eliminadas: {lastDeleteUrb.removed} / {lastDeleteUrb.processed}
-                <div className="max-h-56 overflow-auto mt-2 border rounded-lg">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr>
-                        <th className="p-2">name</th>
-                        <th className="p-2">status</th>
-                        <th className="p-2">error</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {lastDeleteUrb.report.map((r, i) => (
-                        <tr key={i} className="border-t">
-                          <td className="p-2">{r.name}</td>
-                          <td className="p-2">
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[11px] ${deleteStatusPill(
-                                r.status
-                              )}`}
-                            >
-                              {r.status}
-                            </span>
-                          </td>
-                          <td className="p-2 text-red-600">{r.error ?? ""}</td>
+              <div className="mt-4 p-4 rounded-xl bg-neutral-900 dark:bg-neutral-850 border border-neutral-200 dark:border-neutral-700">
+                <p className="text-sm font-semibold mb-3 text-neutral-800 dark:text-neutral-200">
+                  Resumen: Eliminadas: {lastDeleteUrb.removed} /{" "}
+                  {lastDeleteUrb.processed}
+                </p>
+                <div className="bg-white dark:bg-neutral-900 rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+                  <div className="max-h-64 overflow-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-neutral-100 dark:bg-neutral-800 sticky top-0 z-10">
+                        <tr>
+                          <th className="text-left px-4 py-3 font-semibold text-neutral-700 dark:text-neutral-300 border-b border-neutral-200 dark:border-neutral-700">
+                            Nombre
+                          </th>
+                          <th className="text-left px-4 py-3 font-semibold text-neutral-700 dark:text-neutral-300 border-b border-neutral-200 dark:border-neutral-700 w-32">
+                            Estado
+                          </th>
+                          <th className="text-left px-4 py-3 font-semibold text-neutral-700 dark:text-neutral-300 border-b border-neutral-200 dark:border-neutral-700">
+                            Error
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {lastDeleteUrb.report.map((r, i) => (
+                          <tr
+                            key={i}
+                            className="border-b border-neutral-100 dark:border-neutral-800 hover:bg-neutral-200/50 cursor-pointer dark:hover:bg-neutral-850/50 transition-colors"
+                          >
+                            <td className="px-4 py-3 text-neutral-800 dark:text-neutral-200 font-medium">
+                              {r.name}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${deleteStatusPill(
+                                  r.status
+                                )}`}
+                              >
+                                {r.status.replace("_", " ")}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-red-600 dark:text-red-400 text-xs">
+                              {r.error ?? "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}
@@ -364,34 +420,40 @@ export default function BulkTab({ toasts }: Props) {
         </div>
       </div>
 
+      <hr className="my-10 border-neutral-200 dark:border-neutral-800" />
+
       {/* ================= Sirenas ================= */}
-      <h3 className="font-medium mt-10 mb-2 flex items-center gap-2 text-neutral-900 dark:text-neutral-100">
-        <Upload className="size-4" /> Carga masiva de sirenas
+      <h3 className="font-medium mb-4 flex items-center gap-2 text-neutral-900 dark:text-neutral-100">
+        <Upload className="size-5" /> Carga masiva de sirenas
       </h3>
-      <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-3">
+      <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-5">
         Usa Excel (.xlsx). El primer paso es un <b>Dry-run</b> de validación;
         luego confirma para escribir en BD.
       </p>
 
-      <div className="grid lg:grid-cols-2 gap-3">
+      <div className="grid lg:grid-cols-2 gap-6">
         {/* Importar Sirenas */}
-        <div className="rounded-xl border p-3 bg-white dark:bg-neutral-900">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-medium">Importar / Actualizar</div>
+        <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 p-4 bg-white dark:bg-neutral-900">
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-neutral-200 dark:border-neutral-800">
+            <div className="text-base font-medium flex items-center gap-2">
+              <FileUp className="size-4 text-[var(--brand-primary)]" /> Importar
+              / Actualizar
+            </div>
             <button
               onClick={onDownloadTemplateSir}
-              className="text-xs px-2 py-1 rounded-lg border hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer text-neutral-700 dark:text-neutral-300"
             >
-              Descargar plantilla
+              <Download className="size-3.5" /> Descargar plantilla
             </button>
           </div>
 
-          <div className="mt-3 space-y-3">
-            <label className="flex flex-col items-start gap-2 cursor-pointer">
-              <span className="px-3 py-2 rounded-xl border border-dashed text-sm">
+          <div className="mt-4 space-y-4">
+            <label className="flex items-center gap-3 cursor-pointer p-2 border border-dashed border-neutral-300 dark:border-neutral-700 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-850 transition-colors">
+              <FileUp className="size-5 text-neutral-500 dark:text-neutral-400" />
+              <span className="text-sm truncate flex-1 text-neutral-700 dark:text-neutral-300">
                 {fileImportSir
-                  ? `📄 ${fileImportSir.name}`
-                  : "Seleccionar archivo .xlsx"}
+                  ? `Archivo seleccionado: ${fileImportSir.name}`
+                  : "Seleccionar archivo .xlsx para importar"}
               </span>
               <input
                 type="file"
@@ -404,28 +466,37 @@ export default function BulkTab({ toasts }: Props) {
               />
             </label>
 
-            <div className="flex items-center gap-2">
-              <label className="text-sm">Modo</label>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                Modo de ejecución:
+              </span>
               <button
                 onClick={() => setDryRunSir((d) => !d)}
-                className={`text-xs px-2 py-1 rounded-lg border ${
+                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer ${
                   dryRunSir
-                    ? "bg-amber-100 dark:bg-amber-900/30"
-                    : "bg-emerald-100 dark:bg-emerald-900/30"
+                    ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-700"
+                    : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700"
                 }`}
               >
-                {dryRunSir ? "Dry-run" : "Confirmar"}
+                {dryRunSir ? (
+                  <ToggleRight className="size-4" />
+                ) : (
+                  <ToggleLeft className="size-4" />
+                )}
+                {dryRunSir
+                  ? "Dry-run (Simulación)"
+                  : "Confirmar (Escribir en BD)"}
               </button>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 disabled={!fileImportSir || importMutSir.isPending}
                 onClick={() =>
                   fileImportSir &&
                   importMutSir.mutate({ file: fileImportSir, dry: dryRunSir })
                 }
-                className="px-3 py-2 rounded-xl border text-sm"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--brand-primary)] text-white text-sm font-medium hover:brightness-110 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {importMutSir.isPending
                   ? "Procesando…"
@@ -441,7 +512,7 @@ export default function BulkTab({ toasts }: Props) {
                     fileImportSir &&
                     importMutSir.mutate({ file: fileImportSir, dry: false })
                   }
-                  className="px-3 py-2 rounded-xl border text-sm"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-sm font-medium hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Confirmar con el mismo archivo
                 </button>
@@ -449,37 +520,54 @@ export default function BulkTab({ toasts }: Props) {
             </div>
 
             {lastImportSir && (
-              <div className="mt-3 text-sm">
-                Procesados: {lastImportSir.processed} · A crear:{" "}
-                {lastImportSir.toCreate} · A actualizar:{" "}
-                {lastImportSir.toUpdate}
-                <div className="max-h-56 overflow-auto mt-2 border rounded-lg">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr>
-                        <th className="p-2">deviceId</th>
-                        <th className="p-2">status</th>
-                        <th className="p-2">error</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {lastImportSir.report.map((r, i) => (
-                        <tr key={i} className="border-t">
-                          <td className="p-2">{r.deviceId}</td>
-                          <td className="p-2">
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[11px] ${statusPill(
-                                r.status
-                              )}`}
-                            >
-                              {r.status}
-                            </span>
-                          </td>
-                          <td className="p-2 text-red-600">{r.error ?? ""}</td>
+              <div className="mt-4 p-4 rounded-xl bg-neutral-900 dark:bg-neutral-850 border border-neutral-200 dark:border-neutral-700">
+                <p className="text-sm font-semibold mb-3 text-neutral-800 dark:text-neutral-200">
+                  Resumen: Procesados: {lastImportSir.processed} • A crear:{" "}
+                  {lastImportSir.toCreate} • A actualizar:{" "}
+                  {lastImportSir.toUpdate}
+                </p>
+                <div className="bg-white dark:bg-neutral-900 rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+                  <div className="max-h-64 overflow-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-neutral-100 dark:bg-neutral-800 sticky top-0 z-10">
+                        <tr>
+                          <th className="text-left px-4 py-3 font-semibold text-neutral-700 dark:text-neutral-300 border-b border-neutral-200 dark:border-neutral-700">
+                            Device ID
+                          </th>
+                          <th className="text-left px-4 py-3 font-semibold text-neutral-700 dark:text-neutral-300 border-b border-neutral-200 dark:border-neutral-700 w-32">
+                            Estado
+                          </th>
+                          <th className="text-left px-4 py-3 font-semibold text-neutral-700 dark:text-neutral-300 border-b border-neutral-200 dark:border-neutral-700">
+                            Error
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {lastImportSir.report.map((r, i) => (
+                          <tr
+                            key={i}
+                            className="border-b border-neutral-100 dark:border-neutral-800 hover:bg-neutral-200/50 cursor-pointer dark:hover:bg-neutral-850/50 transition-colors"
+                          >
+                            <td className="px-4 py-3 text-neutral-800 dark:text-neutral-200 font-medium">
+                              {r.deviceId}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${statusPill(
+                                  r.status
+                                )}`}
+                              >
+                                {r.status.replace("_", " ")}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-red-600 dark:text-red-400 text-xs">
+                              {r.error ?? "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}
@@ -487,16 +575,20 @@ export default function BulkTab({ toasts }: Props) {
         </div>
 
         {/* Borrado Sirenas */}
-        <div className="rounded-xl border p-3 bg-white dark:bg-neutral-900">
-          <div className="text-sm font-medium">
-            Borrado masivo (por deviceId)
+        <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 p-4 bg-white dark:bg-neutral-900">
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-neutral-200 dark:border-neutral-800">
+            <div className="text-base font-medium flex items-center gap-2">
+              <FileX className="size-4 text-red-500" /> Borrado masivo (por
+              deviceId)
+            </div>
           </div>
-          <div className="mt-3 space-y-3">
-            <label className="flex flex-col items-start gap-2 cursor-pointer">
-              <span className="px-3 py-2 rounded-xl border border-dashed text-sm">
+          <div className="mt-4 space-y-4">
+            <label className="flex items-center gap-3 cursor-pointer p-2 border border-dashed border-neutral-300 dark:border-neutral-700 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-850 transition-colors">
+              <FileUp className="size-5 text-neutral-500 dark:text-neutral-400" />
+              <span className="text-sm truncate flex-1 text-neutral-700 dark:text-neutral-300">
                 {fileDeleteSir
-                  ? `📄 ${fileDeleteSir.name}`
-                  : "Seleccionar archivo .xlsx"}
+                  ? `Archivo seleccionado: ${fileDeleteSir.name}`
+                  : "Seleccionar archivo .xlsx para eliminar"}
               </span>
               <input
                 type="file"
@@ -514,41 +606,59 @@ export default function BulkTab({ toasts }: Props) {
               onClick={() =>
                 fileDeleteSir && deleteMutSir.mutate(fileDeleteSir)
               }
-              className="px-3 py-2 rounded-xl border text-sm"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {deleteMutSir.isPending ? "Eliminando…" : "Eliminar desde Excel"}
             </button>
 
             {lastDeleteSir && (
-              <div className="mt-3 text-sm">
-                Eliminadas: {lastDeleteSir.removed} / {lastDeleteSir.processed}
-                <div className="max-h-56 overflow-auto mt-2 border rounded-lg">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr>
-                        <th className="p-2">deviceId</th>
-                        <th className="p-2">status</th>
-                        <th className="p-2">error</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {lastDeleteSir.report.map((r, i) => (
-                        <tr key={i} className="border-t">
-                          <td className="p-2">{r.deviceId}</td>
-                          <td className="p-2">
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[11px] ${deleteStatusPill(
-                                r.status
-                              )}`}
-                            >
-                              {r.status}
-                            </span>
-                          </td>
-                          <td className="p-2 text-red-600">{r.error ?? ""}</td>
+              <div className="mt-4 p-4 rounded-xl bg-neutral-900 dark:bg-neutral-850 border border-neutral-200 dark:border-neutral-700">
+                <p className="text-sm font-semibold mb-3 text-neutral-800 dark:text-neutral-200">
+                  Resumen: Eliminadas: {lastDeleteSir.removed} /{" "}
+                  {lastDeleteSir.processed}
+                </p>
+                <div className="bg-white dark:bg-neutral-900 rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+                  <div className="max-h-64 overflow-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-neutral-100 dark:bg-neutral-800 sticky top-0 z-10">
+                        <tr>
+                          <th className="text-left px-4 py-3 font-semibold text-neutral-700 dark:text-neutral-300 border-b border-neutral-200 dark:border-neutral-700">
+                            Device ID
+                          </th>
+                          <th className="text-left px-4 py-3 font-semibold text-neutral-700 dark:text-neutral-300 border-b border-neutral-200 dark:border-neutral-700 w-32">
+                            Estado
+                          </th>
+                          <th className="text-left px-4 py-3 font-semibold text-neutral-700 dark:text-neutral-300 border-b border-neutral-200 dark:border-neutral-700">
+                            Error
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {lastDeleteSir.report.map((r, i) => (
+                          <tr
+                            key={i}
+                            className="border-b border-neutral-100 dark:border-neutral-800 hover:bg-neutral-200/50 cursor-pointer dark:hover:bg-neutral-850/50 transition-colors"
+                          >
+                            <td className="px-4 py-3 text-neutral-800 dark:text-neutral-200 font-medium">
+                              {r.deviceId}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${deleteStatusPill(
+                                  r.status
+                                )}`}
+                              >
+                                {r.status.replace("_", " ")}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-red-600 dark:text-red-400 text-xs">
+                              {r.error ?? "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}
