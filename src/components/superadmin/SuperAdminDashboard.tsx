@@ -14,6 +14,7 @@ import ContentTabs from "./SuperAdminTabs";
 import UrbanizacionForm from "./modals/UrbanizacionForm";
 import SirenForm from "./modals/SirenForm";
 import ConfirmDialog from "./modals/ConfirmDialog";
+import InfoDialog from "./modals/InfoDialog"; // Importar el nuevo modal
 import ResumenTab from "./tabs/ResumenTab";
 import SirenasTab from "./tabs/SirenasTab";
 import UsuariosTab from "./tabs/UsuariosTab";
@@ -24,7 +25,8 @@ import HeaderBar from "./HeaderBar";
 
 export default function SuperAdminDashboard() {
   const toasts = useMiniToasts();
-  const { modals, setters, mutations } = useSuperAdminMutations(toasts);
+  const { modals, setters, mutations, actions } =
+    useSuperAdminMutations(toasts);
 
   const {
     selectedUrbanizacionId,
@@ -40,7 +42,7 @@ export default function SuperAdminDashboard() {
       const h = window.location.hash.replace("#", "");
       if (isTabKey(h)) setActive(h);
     };
-    onHash(); // Check on initial render
+    onHash();
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
@@ -149,7 +151,7 @@ export default function SuperAdminDashboard() {
                     <Pencil className="size-4" />
                   </button>
                   <button
-                    onClick={() => setters.setToDelete(u)}
+                    onClick={() => actions.startDelete(u)}
                     className="p-1 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 cursor-pointer"
                     title="Eliminar"
                   >
@@ -239,6 +241,13 @@ export default function SuperAdminDashboard() {
         }
         onClose={() => setters.setToDelete(null)}
       />
+      {/* Nuevo modal de advertencia */}
+      <InfoDialog
+        open={!!modals.deleteWarning}
+        title="No se puede eliminar"
+        message={modals.deleteWarning || ""}
+        onConfirm={() => setters.setDeleteWarning(null)}
+      />
       <SirenForm
         open={modals.openCreateSiren}
         mode="create"
@@ -280,7 +289,6 @@ export default function SuperAdminDashboard() {
         }
         onClose={() => setters.setToDeleteSiren(null)}
       />
-
       {toasts.container}
     </div>
   );

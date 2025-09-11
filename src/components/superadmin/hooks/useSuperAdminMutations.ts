@@ -1,4 +1,3 @@
-// src/components/superadmin/hooks/useSuperAdminMutations.ts
 "use client";
 
 import { useState } from "react";
@@ -11,6 +10,8 @@ import {
   sa_createSiren,
   sa_updateSiren,
   sa_deleteSiren,
+  sa_listSirensByUrbanizacion, // Importar para la verificación
+  sa_listUsersByUrbanizacion, // Importar para la verificación
 } from "@/services/superadmin";
 import type { Urbanizacion, Siren } from "@/types/superadmin";
 import type { UrbanizacionFormValues } from "../modals/UrbanizacionForm";
@@ -31,6 +32,28 @@ export function useSuperAdminMutations(toasts: {
   const [openCreateSiren, setOpenCreateSiren] = useState(false);
   const [toEditSiren, setToEditSiren] = useState<Siren | null>(null);
   const [toDeleteSiren, setToDeleteSiren] = useState<Siren | null>(null);
+  // Nuevo estado para el diálogo de advertencia
+  const [deleteWarning, setDeleteWarning] = useState<string | null>(null);
+
+  // Verificación antes de eliminar
+  const startDelete = async (urbanizacion: Urbanizacion) => {
+    try {
+      const [sirens, users] = await Promise.all([
+        sa_listSirensByUrbanizacion(urbanizacion.id),
+        sa_listUsersByUrbanizacion(urbanizacion.id),
+      ]);
+
+      if (sirens.total > 0 || users.total > 0) {
+        setDeleteWarning(
+          `La urbanización "${urbanizacion.name}" no se puede eliminar porque tiene ${sirens.total} sirena(s) y ${users.total} usuario(s) asociados. Por favor, reasigna o elimina estas entidades primero.`
+        );
+      } else {
+        setToDelete(urbanizacion);
+      }
+    } catch (error) {
+      toasts.error("No se pudo verificar el estado de la urbanización.");
+    }
+  };
 
   // Mutaciones de Urbanizaciones
   const createMut = useMutation({
@@ -108,6 +131,7 @@ export function useSuperAdminMutations(toasts: {
       openCreateSiren,
       toEditSiren,
       toDeleteSiren,
+      deleteWarning, // Exportar estado de advertencia
     },
     setters: {
       setOpenCreate,
@@ -116,6 +140,7 @@ export function useSuperAdminMutations(toasts: {
       setOpenCreateSiren,
       setToEditSiren,
       setToDeleteSiren,
+      setDeleteWarning, // Exportar setter de advertencia
     },
     mutations: {
       createMut,
@@ -124,6 +149,10 @@ export function useSuperAdminMutations(toasts: {
       createSirenMut,
       updateSirenMut,
       deleteSirenMut,
+    },
+    actions: {
+      // Exportar la nueva acción
+      startDelete,
     },
   };
 }
