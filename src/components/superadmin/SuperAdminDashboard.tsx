@@ -14,7 +14,7 @@ import ContentTabs from "./SuperAdminTabs";
 import UrbanizacionForm from "./modals/UrbanizacionForm";
 import SirenForm from "./modals/SirenForm";
 import ConfirmDialog from "./modals/ConfirmDialog";
-import InfoDialog from "./modals/InfoDialog"; // Importar el nuevo modal
+import InfoDialog from "./modals/InfoDialog";
 import ResumenTab from "./tabs/ResumenTab";
 import SirenasTab from "./tabs/SirenasTab";
 import UsuariosTab from "./tabs/UsuariosTab";
@@ -22,6 +22,18 @@ import AsignacionesTab from "./tabs/AsignacionesTab";
 import SesionesTab from "./tabs/SesionesTab";
 import BulkTab from "./tabs/BulkTab";
 import HeaderBar from "./HeaderBar";
+import type { SirenFormValues } from "./modals/SirenForm";
+
+// Utilidad para mapear Siren a SirenFormValues
+function sirenToFormValues(s: Siren): Partial<SirenFormValues> {
+  return {
+    deviceId: s.deviceId,
+    apiKey: s.apiKey,
+    urbanizationId: s.urbanizationId ?? s.urbanizacionId ?? "",
+    lat: s.lat,
+    lng: s.lng,
+  };
+}
 
 export default function SuperAdminDashboard() {
   const toasts = useMiniToasts();
@@ -210,7 +222,11 @@ export default function SuperAdminDashboard() {
         open={modals.openCreate}
         mode="create"
         loading={mutations.createMut.isPending}
-        onSubmit={(v) => mutations.createMut.mutate(v)}
+        onSubmit={(v) =>
+          mutations.createMut.mutate(
+            v as Parameters<typeof mutations.createMut.mutate>[0]
+          )
+        }
         onClose={() => setters.setOpenCreate(false)}
       />
       <UrbanizacionForm
@@ -220,7 +236,10 @@ export default function SuperAdminDashboard() {
         loading={mutations.updateMut.isPending}
         onSubmit={(v) =>
           modals.toEdit &&
-          mutations.updateMut.mutate({ id: modals.toEdit.id, data: v })
+          mutations.updateMut.mutate({
+            id: modals.toEdit.id,
+            data: v as Parameters<typeof mutations.updateMut.mutate>[0]["data"],
+          })
         }
         onClose={() => setters.setToEdit(null)}
       />
@@ -241,7 +260,6 @@ export default function SuperAdminDashboard() {
         }
         onClose={() => setters.setToDelete(null)}
       />
-      {/* Nuevo modal de advertencia */}
       <InfoDialog
         open={!!modals.deleteWarning}
         title="No se puede eliminar"
@@ -252,19 +270,27 @@ export default function SuperAdminDashboard() {
         open={modals.openCreateSiren}
         mode="create"
         loading={mutations.createSirenMut.isPending}
-        onSubmit={(v) => mutations.createSirenMut.mutate(v)}
+        onSubmit={(v) =>
+          mutations.createSirenMut.mutate(
+            v as Parameters<typeof mutations.createSirenMut.mutate>[0]
+          )
+        }
         onClose={() => setters.setOpenCreateSiren(false)}
       />
       <SirenForm
         open={!!modals.toEditSiren}
         mode="edit"
-        initial={modals.toEditSiren ?? undefined}
+        initial={
+          modals.toEditSiren ? sirenToFormValues(modals.toEditSiren) : undefined
+        }
         loading={mutations.updateSirenMut.isPending}
         onSubmit={(v) =>
           modals.toEditSiren &&
           mutations.updateSirenMut.mutate({
             id: modals.toEditSiren.id,
-            data: v,
+            data: v as Parameters<
+              typeof mutations.updateSirenMut.mutate
+            >[0]["data"],
           })
         }
         onClose={() => setters.setToEditSiren(null)}

@@ -10,12 +10,10 @@ import {
   sa_createSiren,
   sa_updateSiren,
   sa_deleteSiren,
-  sa_listSirensByUrbanizacion, // Importar para la verificación
-  sa_listUsersByUrbanizacion, // Importar para la verificación
+  sa_listSirensByUrbanizacion,
+  sa_listUsersByUrbanizacion,
 } from "@/services/superadmin";
 import type { Urbanizacion, Siren } from "@/types/superadmin";
-import type { UrbanizacionFormValues } from "../modals/UrbanizacionForm";
-import type { SirenFormValues } from "../modals/SirenForm";
 import { errMsg } from "../utils";
 
 export function useSuperAdminMutations(toasts: {
@@ -32,7 +30,6 @@ export function useSuperAdminMutations(toasts: {
   const [openCreateSiren, setOpenCreateSiren] = useState(false);
   const [toEditSiren, setToEditSiren] = useState<Siren | null>(null);
   const [toDeleteSiren, setToDeleteSiren] = useState<Siren | null>(null);
-  // Nuevo estado para el diálogo de advertencia
   const [deleteWarning, setDeleteWarning] = useState<string | null>(null);
 
   // Verificación antes de eliminar
@@ -50,14 +47,15 @@ export function useSuperAdminMutations(toasts: {
       } else {
         setToDelete(urbanizacion);
       }
-    } catch (error) {
+    } catch {
       toasts.error("No se pudo verificar el estado de la urbanización.");
     }
   };
 
   // Mutaciones de Urbanizaciones
   const createMut = useMutation({
-    mutationFn: (v: UrbanizacionFormValues) => sa_createUrbanizacion(v),
+    mutationFn: (v: Parameters<typeof sa_createUrbanizacion>[0]) =>
+      sa_createUrbanizacion(v),
     onSuccess: (created) => {
       toasts.success(`Urbanización "${created.name}" creada.`);
       queryClient.invalidateQueries({ queryKey: ["sa", "urbanizations"] });
@@ -68,8 +66,10 @@ export function useSuperAdminMutations(toasts: {
   });
 
   const updateMut = useMutation({
-    mutationFn: (vars: { id: string; data: UrbanizacionFormValues }) =>
-      sa_updateUrbanizacion(vars.id, vars.data),
+    mutationFn: (vars: {
+      id: string;
+      data: Parameters<typeof sa_updateUrbanizacion>[1];
+    }) => sa_updateUrbanizacion(vars.id, vars.data),
     onSuccess: (u) => {
       toasts.success(`Urbanización "${u.name}" actualizada.`);
       queryClient.invalidateQueries({ queryKey: ["sa", "urbanizations"] });
@@ -93,7 +93,7 @@ export function useSuperAdminMutations(toasts: {
 
   // Mutaciones de Sirenas
   const createSirenMut = useMutation({
-    mutationFn: (v: SirenFormValues) => sa_createSiren(v),
+    mutationFn: (v: Parameters<typeof sa_createSiren>[0]) => sa_createSiren(v),
     onSuccess: (created) => {
       toasts.success(`Sirena "${created.deviceId}" creada.`);
       queryClient.invalidateQueries({ queryKey: ["sa", "sirens"] });
@@ -103,8 +103,10 @@ export function useSuperAdminMutations(toasts: {
   });
 
   const updateSirenMut = useMutation({
-    mutationFn: (vars: { id: string; data: SirenFormValues }) =>
-      sa_updateSiren(vars.id, vars.data),
+    mutationFn: (vars: {
+      id: string;
+      data: Parameters<typeof sa_updateSiren>[1];
+    }) => sa_updateSiren(vars.id, vars.data),
     onSuccess: (u) => {
       toasts.success(`Sirena "${u.deviceId}" actualizada.`);
       queryClient.invalidateQueries({ queryKey: ["sa", "sirens"] });
@@ -131,7 +133,7 @@ export function useSuperAdminMutations(toasts: {
       openCreateSiren,
       toEditSiren,
       toDeleteSiren,
-      deleteWarning, // Exportar estado de advertencia
+      deleteWarning,
     },
     setters: {
       setOpenCreate,
@@ -140,7 +142,7 @@ export function useSuperAdminMutations(toasts: {
       setOpenCreateSiren,
       setToEditSiren,
       setToDeleteSiren,
-      setDeleteWarning, // Exportar setter de advertencia
+      setDeleteWarning,
     },
     mutations: {
       createMut,
@@ -151,7 +153,6 @@ export function useSuperAdminMutations(toasts: {
       deleteSirenMut,
     },
     actions: {
-      // Exportar la nueva acción
       startDelete,
     },
   };
