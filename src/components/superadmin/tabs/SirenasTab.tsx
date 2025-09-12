@@ -27,10 +27,7 @@ export default function SirenasTab({
     queryKey: ["sa", "sirens", selectedUrbanizacionId],
     queryFn: () =>
       selectedUrbanizacionId
-        ? sa_listSirensByUrbanizacion(selectedUrbanizacionId, {
-            page: 1,
-            pageSize: 50,
-          })
+        ? sa_listSirensByUrbanizacion(selectedUrbanizacionId)
         : Promise.resolve({
             items: [],
             total: 0,
