@@ -34,6 +34,13 @@ export type User = {
   id: string;
   keycloakId?: string | null; // 👈 para cruzar con /users/:id/sessions
   name: string;
+  firstName: string;
+  lastName: string;
+  cedula: string;
+  celular: string;
+  villa: string;
+  manzana: string;
+  etapa: string;
   email: string;
   username: string;
   role: "SUPERADMIN" | "ADMIN" | "GUARDIA" | "RESIDENTE";
@@ -46,6 +53,7 @@ export type User = {
   createdAt: string;
   sessionLimit?: number | null; // valor crudo desde backend
   sessions: number; // valor efectivo (regla por rol)
+  activo: boolean;
 };
 
 export type Assignment = {

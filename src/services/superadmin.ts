@@ -120,6 +120,18 @@ function mapUser(x: ApiObj): User {
     createdAt: toStr(pick(x, "createdAt", "created_at")),
     sessionLimit,
     sessions,
+    // 👇 Añade todos los campos opcionales
+    firstName: first,
+    lastName: last,
+    cedula: toStr(pick(x, "cedula")),
+    celular: toStr(pick(x, "celular")),
+    etapa: toStr(pick(x, "etapa")),
+    manzana: toStr(pick(x, "manzana")),
+    villa: toStr(pick(x, "villa")),
+    activo:
+      typeof pick(x, "activo") === "boolean"
+        ? Boolean(pick(x, "activo"))
+        : true,
   };
 }
 
@@ -413,4 +425,27 @@ export async function sa_downloadSirensTemplate(): Promise<Blob> {
     responseType: "blob",
   });
   return data as Blob;
+}
+
+// Crear usuario
+export async function sa_createUser(
+  input: Partial<User> & { urbanizationId: string }
+): Promise<User> {
+  const { data } = await api.post("/users", input);
+  return data as User;
+}
+
+// Actualizar usuario
+export async function sa_updateUser(
+  id: string,
+  input: Partial<User>
+): Promise<User> {
+  const { data } = await api.put(`/users/${id}`, input);
+  return data as User;
+}
+
+// Eliminar usuario
+export async function sa_deleteUser(id: string): Promise<{ id: string }> {
+  const { data } = await api.delete(`/users/${id}`);
+  return { id: String(data?.id ?? id) };
 }

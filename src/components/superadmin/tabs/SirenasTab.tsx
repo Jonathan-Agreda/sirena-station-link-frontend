@@ -65,7 +65,7 @@ export default function SirenasTab({
           onClick={onCreate}
           className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-[var(--brand-primary)] text-white px-3 py-1.5 text-sm hover:brightness-110 cursor-pointer"
         >
-          Nueva sirena
+          + Nueva sirena
         </button>
       </div>
 

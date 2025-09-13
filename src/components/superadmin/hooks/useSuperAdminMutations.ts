@@ -12,8 +12,12 @@ import {
   sa_deleteSiren,
   sa_listSirensByUrbanizacion,
   sa_listUsersByUrbanizacion,
+  // 👇 Importa los servicios de usuario
+  sa_createUser,
+  sa_updateUser,
+  sa_deleteUser,
 } from "@/services/superadmin";
-import type { Urbanizacion, Siren } from "@/types/superadmin";
+import type { Urbanizacion, Siren, User } from "@/types/superadmin";
 import { errMsg } from "../utils";
 
 export function useSuperAdminMutations(toasts: {
@@ -125,6 +129,35 @@ export function useSuperAdminMutations(toasts: {
     onError: (e) => toasts.error(errMsg(e)),
   });
 
+  // --- Mutaciones de Usuarios ---
+  const createUserMut = useMutation({
+    mutationFn: (v: Parameters<typeof sa_createUser>[0]) => sa_createUser(v),
+    onSuccess: (created) => {
+      toasts.success(`Usuario "${created.email}" creado.`);
+      queryClient.invalidateQueries({ queryKey: ["sa", "users"] });
+    },
+    onError: (e) => toasts.error(errMsg(e)),
+  });
+
+  const updateUserMut = useMutation({
+    mutationFn: (vars: { id: string; data: Partial<User> }) =>
+      sa_updateUser(vars.id, vars.data),
+    onSuccess: (u) => {
+      toasts.success(`Usuario "${u.email}" actualizado.`);
+      queryClient.invalidateQueries({ queryKey: ["sa", "users"] });
+    },
+    onError: (e) => toasts.error(errMsg(e)),
+  });
+
+  const deleteUserMut = useMutation({
+    mutationFn: (id: string) => sa_deleteUser(id),
+    onSuccess: () => {
+      toasts.success("Usuario eliminado.");
+      queryClient.invalidateQueries({ queryKey: ["sa", "users"] });
+    },
+    onError: (e) => toasts.error(errMsg(e)),
+  });
+
   return {
     modals: {
       openCreate,
@@ -151,9 +184,19 @@ export function useSuperAdminMutations(toasts: {
       createSirenMut,
       updateSirenMut,
       deleteSirenMut,
+      // 👇 Exporta las mutaciones de usuario
+      createUserMut,
+      updateUserMut,
+      deleteUserMut,
     },
     actions: {
       startDelete,
+    },
+    // 👇 Para mayor claridad, puedes agruparlas también así:
+    userMutations: {
+      createUserMut,
+      updateUserMut,
+      deleteUserMut,
     },
   };
 }
