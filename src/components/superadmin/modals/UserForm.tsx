@@ -1,14 +1,28 @@
 import React from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { User } from "@/types/superadmin";
 import clsx from "clsx";
 
-// Enum de roles válidos
-const ROLES = ["SUPERADMIN", "ADMIN", "GUARDIA", "RESIDENTE"] as const;
+// -----------------------------------------------------------------------------
+// Roles (para UI y validación)
+// -----------------------------------------------------------------------------
+export const RoleEnum = {
+  SUPERADMIN: "SUPERADMIN",
+  ADMIN: "ADMIN",
+  GUARDIA: "GUARDIA",
+  RESIDENTE: "RESIDENTE",
+} as const;
 
-// Esquema Zod alineado al modelo y reglas de negocio
+export type Role = (typeof RoleEnum)[keyof typeof RoleEnum];
+
+// Para el <select />
+export const ROLE_VALUES = Object.values(RoleEnum) as Role[];
+
+// -----------------------------------------------------------------------------
+// Schema Zod
+// -----------------------------------------------------------------------------
 export const userSchema = z.object({
   id: z.string().optional(),
   email: z.string().email("Email inválido"),
@@ -20,7 +34,8 @@ export const userSchema = z.object({
       /^[a-z0-9._-]+$/,
       "Solo minúsculas, números, punto, guión y guión bajo"
     ),
-  role: z.enum(ROLES, { required_error: "El rol es requerido" }),
+  // ✅ nativeEnum no recibe { required_error }, se usa sin opciones
+  role: z.nativeEnum(RoleEnum),
   firstName: z
     .string()
     .min(2, "Nombre muy corto")
@@ -57,15 +72,21 @@ export const userSchema = z.object({
 
 export type UserFormValues = z.infer<typeof userSchema>;
 
+// -----------------------------------------------------------------------------
+// Interfaces
+// -----------------------------------------------------------------------------
 interface UserFormProps {
   open: boolean;
   initialData?: User | null;
   onClose: () => void;
   onSubmit: (data: UserFormValues) => Promise<void>;
   loading?: boolean;
-  urbanizacionNombre?: string; // opcional, para mostrar el nombre
+  urbanizacionNombre?: string;
 }
 
+// -----------------------------------------------------------------------------
+// Componente
+// -----------------------------------------------------------------------------
 export const UserForm: React.FC<UserFormProps> = ({
   open,
   initialData,
@@ -74,14 +95,6 @@ export const UserForm: React.FC<UserFormProps> = ({
   loading = false,
   urbanizacionNombre,
 }) => {
-  // Calcula el valor por defecto de sesiones según el rol
-  const defaultSessions =
-    initialData?.sessionLimit == null
-      ? initialData?.role === "SUPERADMIN"
-        ? 3
-        : 1
-      : initialData.sessionLimit;
-
   const {
     register,
     handleSubmit,
@@ -90,29 +103,28 @@ export const UserForm: React.FC<UserFormProps> = ({
     watch,
     control,
   } = useForm<UserFormValues>({
-    resolver: zodResolver(userSchema),
-    defaultValues: initialData ?? {
-      email: "",
-      username: "",
-      role: "RESIDENTE",
-      firstName: "",
-      lastName: "",
-      cedula: "",
-      celular: "",
-      etapa: "",
-      manzana: "",
-      villa: "",
-      alicuota: true,
-      sessionLimit: undefined,
-      activo: true,
-    },
-    mode: "onBlur",
-  });
-
-  React.useEffect(() => {
-    if (open) {
-      reset(
-        initialData ?? {
+    // Cast para alinear tipos entre RHF y zodResolver en algunas versiones
+    resolver: zodResolver(
+      userSchema
+    ) as import("react-hook-form").Resolver<UserFormValues>,
+    defaultValues: initialData
+      ? {
+          id: initialData.id,
+          email: initialData.email || "",
+          username: initialData.username || "",
+          role: (initialData.role as Role) || "RESIDENTE",
+          firstName: initialData.firstName || "",
+          lastName: initialData.lastName || "",
+          cedula: initialData.cedula || "",
+          celular: initialData.celular || "",
+          etapa: initialData.etapa || "",
+          manzana: initialData.manzana || "",
+          villa: initialData.villa || "",
+          alicuota: initialData.alicuota ?? true,
+          sessionLimit: initialData.sessionLimit ?? undefined,
+          activo: initialData.activo ?? true,
+        }
+      : {
           email: "",
           username: "",
           role: "RESIDENTE",
@@ -126,21 +138,63 @@ export const UserForm: React.FC<UserFormProps> = ({
           alicuota: true,
           sessionLimit: undefined,
           activo: true,
-        }
+        },
+    mode: "onBlur",
+  });
+
+  React.useEffect(() => {
+    if (open) {
+      reset(
+        initialData
+          ? {
+              id: initialData.id,
+              email: initialData.email || "",
+              username: initialData.username || "",
+              role: (initialData.role as Role) || "RESIDENTE",
+              firstName: initialData.firstName || "",
+              lastName: initialData.lastName || "",
+              cedula: initialData.cedula || "",
+              celular: initialData.celular || "",
+              etapa: initialData.etapa || "",
+              manzana: initialData.manzana || "",
+              villa: initialData.villa || "",
+              alicuota: initialData.alicuota ?? true,
+              sessionLimit: initialData.sessionLimit ?? undefined,
+              activo: initialData.activo ?? true,
+            }
+          : {
+              email: "",
+              username: "",
+              role: "RESIDENTE",
+              firstName: "",
+              lastName: "",
+              cedula: "",
+              celular: "",
+              etapa: "",
+              manzana: "",
+              villa: "",
+              alicuota: true,
+              sessionLimit: undefined,
+              activo: true,
+            }
       );
     }
   }, [open, initialData, reset]);
 
-  // Para mostrar el valor por defecto de sesiones si es null
+  // Para UI: placeholder cuando sessionLimit es null/undefined
   const sessionLimitValue = watch("sessionLimit");
   const roleValue = watch("role");
 
   if (!open) return null;
 
+  const onSubmitHandler: SubmitHandler<UserFormValues> = async (data) => {
+    await onSubmit(data);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <form
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleSubmit(onSubmitHandler)}
         className="bg-white dark:bg-zinc-900 rounded-lg shadow-lg p-6 w-full max-w-md"
         autoComplete="off"
       >
@@ -227,7 +281,7 @@ export const UserForm: React.FC<UserFormProps> = ({
             )}
             disabled={loading}
           >
-            {ROLES.map((r) => (
+            {ROLE_VALUES.map((r) => (
               <option key={r} value={r}>
                 {r.charAt(0) + r.slice(1).toLowerCase()}
               </option>
@@ -290,7 +344,7 @@ export const UserForm: React.FC<UserFormProps> = ({
           </div>
         </div>
 
-        {/* Cedula y Celular */}
+        {/* Cédula y Celular */}
         <div className="mb-4 flex gap-2">
           <div className="flex-1">
             <label className="block mb-1 font-medium" htmlFor="cedula">

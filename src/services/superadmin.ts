@@ -8,8 +8,12 @@ import type {
   ActiveSession,
   UrbanizationBulkImportResult,
   UrbanizationBulkDeleteResult,
+  UserBulkImportResult,
+  UserBulkDeleteResult,
   SirenBulkImportResult,
   SirenBulkDeleteResult,
+  AssignmentBulkImportResult,
+  AssignmentBulkDeleteResult,
 } from "@/types/superadmin";
 
 /* ------------------ Tipos y helpers ------------------ */
@@ -295,32 +299,6 @@ export async function sa_deleteAssignment(id: string): Promise<{ id: string }> {
 
 /* ------------------ BULK Asignaciones ------------------ */
 
-export type AssignmentBulkImportItem = {
-  user?: string;
-  siren?: string;
-  status: "would_create" | "would_update" | "created" | "updated" | "error";
-  error?: string;
-};
-export type AssignmentBulkImportResult = {
-  dryRun: boolean;
-  toCreate: number;
-  toUpdate: number;
-  processed: number;
-  report: AssignmentBulkImportItem[];
-};
-
-export type AssignmentBulkDeleteItem = {
-  user?: string;
-  siren?: string;
-  status: "deleted" | "not_found" | "forbidden" | "error";
-  error?: string;
-};
-export type AssignmentBulkDeleteResult = {
-  removed: number;
-  processed: number;
-  report: AssignmentBulkDeleteItem[];
-};
-
 export async function sa_bulkImportAssignments(
   file: File,
   dryRun = true
@@ -560,34 +538,6 @@ export async function sa_deleteUser(id: string): Promise<{ id: string }> {
 }
 
 /* ------------------ BULK Usuarios ------------------ */
-
-export type UserBulkImportItem = {
-  email?: string;
-  username?: string;
-  status: "would_create" | "would_update" | "created" | "updated" | "error";
-  error?: string;
-  note?: string;
-};
-export type UserBulkImportResult = {
-  dryRun: boolean;
-  toCreate: number;
-  toUpdate: number;
-  skipped: number;
-  processed: number;
-  report: UserBulkImportItem[];
-};
-
-export type UserBulkDeleteItem = {
-  email?: string;
-  username?: string;
-  status: "deleted" | "not_found" | "forbidden" | "error";
-  error?: string;
-};
-export type UserBulkDeleteResult = {
-  removed: number;
-  processed: number;
-  report: UserBulkDeleteItem[];
-};
 
 export async function sa_bulkImportUsers(
   file: File,

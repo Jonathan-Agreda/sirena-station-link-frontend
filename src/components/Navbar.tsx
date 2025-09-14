@@ -13,6 +13,7 @@ import {
   ExternalLink,
   Monitor,
   Smartphone,
+  ShieldCheck, // Icono para SuperAdmin
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/store/auth";
@@ -39,6 +40,7 @@ export default function Navbar() {
   const toggle = () => setTheme(isDark ? "light" : "dark");
 
   const isStaff = ["SUPERADMIN", "ADMIN", "GUARDIA"].includes(user?.role ?? "");
+  const isSuperAdmin = user?.role === "SUPERADMIN";
 
   // Cerrar menús al click fuera
   useEffect(() => {
@@ -85,16 +87,44 @@ export default function Navbar() {
                         href="/dashboard"
                         className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium border border-[var(--brand-primary)] text-[var(--brand-primary)] hover:bg-[var(--brand-primary)] hover:text-white dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)] dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)] transition"
                       >
-                        Dashboard 📋
+                        Dashboard
+                        <span className="ml-1">
+                          <span role="img" aria-label="dashboard">
+                            <User size={16} className="inline-block -mt-0.5" />
+                          </span>
+                        </span>
                       </Link>
                     )}
                     <Link
                       href="/sirenastation"
                       className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium border border-[var(--brand-primary)] text-[var(--brand-primary)] hover:bg-[var(--brand-primary)] hover:text-white dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)] dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)] transition"
                     >
-                      SirenaStation 📢
+                      SirenaStation
+                      <span className="ml-1">
+                        <span role="img" aria-label="sirena">
+                          <Smartphone
+                            size={16}
+                            className="inline-block -mt-0.5"
+                          />
+                        </span>
+                      </span>
                     </Link>
                   </>
+                )}
+
+                {/* --- SuperAdmin link visible siempre para SUPERADMIN --- */}
+                {isSuperAdmin && (
+                  <Link
+                    href="/superadmin"
+                    className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium border border-[var(--brand-primary)] text-[var(--brand-primary)] hover:bg-[var(--brand-primary)] hover:text-white dark:border-[var(--brand-primary)] dark:text-[var(--brand-primary)] dark:hover:bg-[var(--brand-primary)] dark:hover:text-[var(--brand-primary-fg)] transition"
+                    style={{
+                      borderColor: "#e879f9", // fuchsia-400
+                      color: "#a21caf", // fuchsia-700
+                    }}
+                  >
+                    <ShieldCheck size={16} className="inline-block -mt-0.5" />
+                    SuperAdmin
+                  </Link>
                 )}
 
                 {/* --- Username + menú --- */}

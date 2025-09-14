@@ -156,3 +156,30 @@ export type SirenBulkDeleteResult = {
   processed: number;
   report: SirenBulkDeleteItem[];
 };
+
+/* ------------------ BULK Asignaciones ------------------ */
+export type AssignmentBulkImportItem = {
+  user?: string;
+  siren?: string;
+  status: "would_create" | "would_update" | "created" | "updated" | "error";
+  error?: string;
+};
+export type AssignmentBulkImportResult = {
+  dryRun: boolean;
+  toCreate: number;
+  toUpdate: number;
+  processed: number;
+  report: AssignmentBulkImportItem[];
+};
+
+export type AssignmentBulkDeleteItem = {
+  user?: string;
+  siren?: string;
+  status: "deleted" | "not_found" | "forbidden" | "error";
+  error?: string;
+};
+export type AssignmentBulkDeleteResult = {
+  removed: number;
+  processed: number;
+  report: AssignmentBulkDeleteItem[];
+};
