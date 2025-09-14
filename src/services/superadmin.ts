@@ -12,7 +12,7 @@ import type {
   SirenBulkDeleteResult,
 } from "@/types/superadmin";
 
-/* ------------------ Tipos y helpers seguros ------------------ */
+/* ------------------ Tipos y helpers ------------------ */
 
 export type Paginated<T> = {
   items: T[];
@@ -106,7 +106,7 @@ function mapUser(x: ApiObj): User {
       : Number(sessionLimit);
 
   const kc = pick(x, "keycloakId");
-  const urb = pick(x, "urbanizationId");
+  const urb = pick(x, "urbanizationId", "urbanizacionId");
 
   return {
     id: toStr(pick(x, "id")),
@@ -120,7 +120,6 @@ function mapUser(x: ApiObj): User {
     createdAt: toStr(pick(x, "createdAt", "created_at")),
     sessionLimit,
     sessions,
-    // 👇 Añade todos los campos opcionales
     firstName: first,
     lastName: last,
     cedula: toStr(pick(x, "cedula")),
@@ -140,16 +139,16 @@ function mapSiren(x: ApiObj): Siren {
   return {
     id: toStr(pick(x, "id")),
     deviceId: toStr(pick(x, "deviceId")),
-    alias: toStr(pick(x, "deviceId")),
+    alias: toStr(pick(x, "alias", "deviceId")),
     urbanizacionId: urb != null ? toStr(urb) : null,
+    apiKey: toStr(pick(x, "apiKey")),
     online: toBool(pick(x, "online")),
     relay: toOnOff(pick(x, "relay")),
-    siren: toOnOff(pick(x, "sirenState")),
-    ip: typeof pick(x, "ip") === "string" ? (pick(x, "ip") as string) : null,
+    siren: toOnOff(pick(x, "siren")),
     lat: toNum(pick(x, "lat")),
     lng: toNum(pick(x, "lng")),
-    lastSeenAt: toStr(pick(x, "lastSeen", "updatedAt")),
-    apiKey: toStr(pick(x, "apiKey")),
+    ip: typeof pick(x, "ip") === "string" ? (pick(x, "ip") as string) : null,
+    lastSeenAt: toStr(pick(x, "lastSeenAt", "lastSeen", "updatedAt")),
   };
 }
 
@@ -279,6 +278,81 @@ export async function sa_listAssignmentsByUrbanizacion(
   };
 }
 
+// Crear asignación
+export async function sa_createAssignment(input: {
+  userId: string;
+  sirenId: string;
+}): Promise<Assignment> {
+  const { data } = await api.post("/assignments", input);
+  return mapAssignment(data);
+}
+
+// Eliminar asignación
+export async function sa_deleteAssignment(id: string): Promise<{ id: string }> {
+  const { data } = await api.delete(`/assignments/${id}`);
+  return { id: String(data?.id ?? id) };
+}
+
+/* ------------------ BULK Asignaciones ------------------ */
+
+export type AssignmentBulkImportItem = {
+  user?: string;
+  siren?: string;
+  status: "would_create" | "would_update" | "created" | "updated" | "error";
+  error?: string;
+};
+export type AssignmentBulkImportResult = {
+  dryRun: boolean;
+  toCreate: number;
+  toUpdate: number;
+  processed: number;
+  report: AssignmentBulkImportItem[];
+};
+
+export type AssignmentBulkDeleteItem = {
+  user?: string;
+  siren?: string;
+  status: "deleted" | "not_found" | "forbidden" | "error";
+  error?: string;
+};
+export type AssignmentBulkDeleteResult = {
+  removed: number;
+  processed: number;
+  report: AssignmentBulkDeleteItem[];
+};
+
+export async function sa_bulkImportAssignments(
+  file: File,
+  dryRun = true
+): Promise<AssignmentBulkImportResult> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const { data } = await api.post(
+    `/assignments/bulk/import?dryRun=${dryRun}`,
+    fd,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
+  return data as AssignmentBulkImportResult;
+}
+
+export async function sa_bulkDeleteAssignments(
+  file: File
+): Promise<AssignmentBulkDeleteResult> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const { data } = await api.post(`/assignments/bulk/delete`, fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data as AssignmentBulkDeleteResult;
+}
+
+export async function sa_downloadAssignmentsTemplate(): Promise<Blob> {
+  const { data } = await api.get(`/assignments/bulk/template`, {
+    responseType: "blob",
+  });
+  return data as Blob;
+}
+
 /* ------------------ SESIONES ------------------ */
 
 export async function sa_listActiveSessionsByUrbanizacion(
@@ -302,6 +376,42 @@ export async function sa_listActiveSessionsByUrbanizacion(
     page: 1,
     pageSize: mapped.length || 50,
   };
+}
+
+// Cerrar una sesión individual
+export async function sa_terminateUserSession(
+  userId: string,
+  sessionId: string
+): Promise<{ success: boolean; sessionId: string }> {
+  const { data } = await api.delete(`/users/${userId}/sessions/${sessionId}`);
+  return data as { success: boolean; sessionId: string };
+}
+
+// Cerrar todas las sesiones de una urbanización
+export async function sa_terminateAllSessionsByUrbanizacion(
+  urbanizacionId: string
+): Promise<{ closed: number; errors: number }> {
+  const { items: users } = await sa_listUsersByUrbanizacion(urbanizacionId);
+  let closed = 0;
+  let errors = 0;
+  for (const u of users) {
+    try {
+      const { data: sessions } = await api.get(`/users/${u.id}/sessions`);
+      if (Array.isArray(sessions)) {
+        for (const sess of sessions) {
+          try {
+            await api.delete(`/users/${u.id}/sessions/${sess.id}`);
+            closed++;
+          } catch {
+            errors++;
+          }
+        }
+      }
+    } catch {
+      errors++;
+    }
+  }
+  return { closed, errors };
 }
 
 /* ------------------ CRUD Urbanizaciones ------------------ */
@@ -427,25 +537,84 @@ export async function sa_downloadSirensTemplate(): Promise<Blob> {
   return data as Blob;
 }
 
-// Crear usuario
+/* ------------------ CRUD Usuarios ------------------ */
+
 export async function sa_createUser(
   input: Partial<User> & { urbanizationId: string }
 ): Promise<User> {
   const { data } = await api.post("/users", input);
-  return data as User;
+  return mapUser(data);
 }
 
-// Actualizar usuario
 export async function sa_updateUser(
   id: string,
   input: Partial<User>
 ): Promise<User> {
   const { data } = await api.put(`/users/${id}`, input);
-  return data as User;
+  return mapUser(data);
 }
 
-// Eliminar usuario
 export async function sa_deleteUser(id: string): Promise<{ id: string }> {
   const { data } = await api.delete(`/users/${id}`);
   return { id: String(data?.id ?? id) };
+}
+
+/* ------------------ BULK Usuarios ------------------ */
+
+export type UserBulkImportItem = {
+  email?: string;
+  username?: string;
+  status: "would_create" | "would_update" | "created" | "updated" | "error";
+  error?: string;
+  note?: string;
+};
+export type UserBulkImportResult = {
+  dryRun: boolean;
+  toCreate: number;
+  toUpdate: number;
+  skipped: number;
+  processed: number;
+  report: UserBulkImportItem[];
+};
+
+export type UserBulkDeleteItem = {
+  email?: string;
+  username?: string;
+  status: "deleted" | "not_found" | "forbidden" | "error";
+  error?: string;
+};
+export type UserBulkDeleteResult = {
+  removed: number;
+  processed: number;
+  report: UserBulkDeleteItem[];
+};
+
+export async function sa_bulkImportUsers(
+  file: File,
+  dryRun = true
+): Promise<UserBulkImportResult> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const { data } = await api.post(`/users/bulk/import?dryRun=${dryRun}`, fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data as UserBulkImportResult;
+}
+
+export async function sa_bulkDeleteUsers(
+  file: File
+): Promise<UserBulkDeleteResult> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const { data } = await api.post(`/users/bulk/delete`, fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data as UserBulkDeleteResult;
+}
+
+export async function sa_downloadUsersTemplate(): Promise<Blob> {
+  const { data } = await api.get(`/users/bulk/template`, {
+    responseType: "blob",
+  });
+  return data as Blob;
 }

@@ -1,5 +1,6 @@
 // src/types/superadmin.ts
 
+// ---------- Urbanizaciones ----------
 export type Urbanizacion = {
   id: string;
   name: string;
@@ -8,12 +9,13 @@ export type Urbanizacion = {
   updatedAt: string;
 };
 
+// ---------- Sirenas ----------
 export type Siren = {
   id: string;
   deviceId: string;
   alias: string;
 
-  // 👇 compatibilidad: el backend devuelve "urbanizationId",
+  // Compatibilidad: el backend devuelve "urbanizationId",
   // pero en el frontend usamos "urbanizacionId"
   urbanizacionId: string | null;
   urbanizationId?: string | null; // opcional, para no romper tipado
@@ -30,9 +32,10 @@ export type Siren = {
   lastSeenAt: string | null;
 };
 
+// ---------- Usuarios ----------
 export type User = {
   id: string;
-  keycloakId?: string | null; // 👈 para cruzar con /users/:id/sessions
+  keycloakId?: string | null; // Para cruzar con /users/:id/sessions
   name: string;
   firstName: string;
   lastName: string;
@@ -46,16 +49,17 @@ export type User = {
   role: "SUPERADMIN" | "ADMIN" | "GUARDIA" | "RESIDENTE";
   alicuota: boolean;
 
-  // mismo caso que con Siren
+  // Compatibilidad con backend
   urbanizacionId: string | null;
   urbanizationId?: string | null;
 
   createdAt: string;
-  sessionLimit?: number | null; // valor crudo desde backend
-  sessions: number; // valor efectivo (regla por rol)
+  sessionLimit?: number | null; // Valor crudo desde backend
+  sessions: number; // Valor efectivo (regla por rol)
   activo: boolean;
 };
 
+// ---------- Asignaciones ----------
 export type Assignment = {
   id: string;
   userId: string;
@@ -63,9 +67,10 @@ export type Assignment = {
   createdAt: string;
 };
 
+// ---------- Sesiones activas ----------
 export type ActiveSession = {
   id: string;
-  userId: string; // <- Keycloak userId
+  userId: string; // Keycloak userId
   username: string;
   ipAddress: string | null;
   start: number; // epoch ms
@@ -96,6 +101,35 @@ export type UrbanizationBulkDeleteResult = {
   removed: number;
   processed: number;
   report: UrbanizationBulkDeleteItem[];
+};
+
+/* ------------------ BULK Usuarios ------------------ */
+export type UserBulkImportItem = {
+  email?: string;
+  username?: string;
+  status: "would_create" | "would_update" | "created" | "updated" | "error";
+  error?: string;
+  note?: string;
+};
+export type UserBulkImportResult = {
+  dryRun: boolean;
+  toCreate: number;
+  toUpdate: number;
+  skipped: number;
+  processed: number;
+  report: UserBulkImportItem[];
+};
+
+export type UserBulkDeleteItem = {
+  email?: string;
+  username?: string;
+  status: "deleted" | "not_found" | "forbidden" | "error";
+  error?: string;
+};
+export type UserBulkDeleteResult = {
+  removed: number;
+  processed: number;
+  report: UserBulkDeleteItem[];
 };
 
 /* ------------------ BULK Sirenas ------------------ */
