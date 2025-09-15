@@ -25,3 +25,22 @@ export async function updateMyContact(
 
   return res;
 }
+
+// --- INICIO NUEVA FUNCIÓN ---
+/**
+ * Llama al backend para generar un link de vinculación de Telegram
+ * para el usuario actualmente logueado.
+ */
+export const getTelegramLink = async (): Promise<{ link: string }> => {
+  try {
+    // Usamos withCredentials para enviar la cookie de sesión HTTP-Only
+    const response = await api.get("/telegram/generate-link", {
+      withCredentials: true,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching Telegram link:", error);
+    throw new Error("No se pudo generar el link de Telegram.");
+  }
+};
+// --- FIN NUEVA FUNCIÓN ---

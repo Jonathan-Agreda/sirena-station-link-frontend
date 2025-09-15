@@ -8,6 +8,7 @@ import type { MeResponse } from "@/services/auth";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Eye, EyeOff, CheckCircle2, X } from "lucide-react";
 import { isAxiosError } from "axios";
+import { getTelegramLink } from "@/services/users"; // <-- NUEVA IMPORTACIÓN
 
 type Props = {
   open: boolean;
@@ -32,6 +33,10 @@ export default function FirstPasswordDialog({
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // --- INICIO NUEVO ESTADO ---
+  const [wantsTelegram, setWantsTelegram] = useState(false);
+  // --- FIN NUEVO ESTADO ---
 
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -76,7 +81,30 @@ export default function FirstPasswordDialog({
         currentPassword,
         newPass
       );
-      toast.success("Contraseña actualizada. ¡Bienvenido!");
+
+      // --- INICIO LÓGICA TELEGRAM MODIFICADA ---
+      if (wantsTelegram) {
+        try {
+          // Generamos el link (esto sucede DESPUÉS de que el login fue exitoso y hay sesión)
+          const { link } = await getTelegramLink();
+          window.open(link, "_blank"); // Abrir pestaña para vincular
+          toast.success(
+            'Contraseña actualizada. Se abrió una pestaña para vincular Telegram. Presiona "Start".',
+            { duration: 6000 }
+          );
+        } catch (linkError) {
+          console.error(linkError);
+          // El login funcionó, pero el link no. Informamos sin detener el flujo.
+          toast.error(
+            "Contraseña actualizada, pero no se pudo generar el link de Telegram."
+          );
+        }
+      } else {
+        // Flujo original si no marca el check
+        toast.success("Contraseña actualizada. ¡Bienvenido!");
+      }
+      // --- FIN LÓGICA TELEGRAM MODIFICADA ---
+
       onClose();
       if (onSuccess) onSuccess(user);
       else router.replace(homeFor(user.role));
@@ -93,6 +121,7 @@ export default function FirstPasswordDialog({
     currentPassword,
     newPass,
     confirm,
+    wantsTelegram, // <-- Añadir dependencia
     onClose,
     onSuccess,
     router,
@@ -248,6 +277,26 @@ export default function FirstPasswordDialog({
                   </div>
                 )}
               </div>
+
+              {/* --- INICIO NUEVO CHECKBOX --- */}
+              <div className="pt-2">
+                <label
+                  htmlFor="telegram-opt-in"
+                  className="flex items-center gap-2 cursor-pointer select-none"
+                >
+                  <input
+                    type="checkbox"
+                    id="telegram-opt-in"
+                    checked={wantsTelegram}
+                    onChange={(e) => setWantsTelegram(e.target.checked)}
+                    className="h-4 w-4 rounded border-neutral-400 dark:border-neutral-500 text-[var(--brand-primary)] focus:ring-[var(--brand-primary)] bg-transparent"
+                  />
+                  <span className="text-sm text-neutral-700 dark:text-neutral-300">
+                    Deseo recibir notificaciones por Telegram
+                  </span>
+                </label>
+              </div>
+              {/* --- FIN NUEVO CHECKBOX --- */}
             </div>
 
             {/* Footer */}

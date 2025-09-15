@@ -54,6 +54,10 @@ export type MeResponse = {
 
   alicuota?: boolean;
 
+  // --- INICIO NUEVO CAMPO TELEGRAM ---
+  telegramChatId: string | null;
+  // --- FIN NUEVO CAMPO TELEGRAM ---
+
   urbanizacion: {
     id: string;
     name: string;
@@ -90,6 +94,10 @@ type RawUser = {
   telefono?: string | null;
 
   alicuota?: boolean;
+
+  // --- INICIO NUEVO CAMPO TELEGRAM ---
+  telegramChatId?: string | null;
+  // --- FIN NUEVO CAMPO TELEGRAM ---
 
   urbanizacion?: MeResponse["urbanizacion"];
   sirens?: Siren[];
@@ -139,6 +147,10 @@ function normalizeUser(raw: RawUser): MeResponse {
       toNullableString(raw.telefono),
 
     alicuota: raw.alicuota !== undefined ? raw.alicuota : true,
+
+    // --- INICIO NUEVO CAMPO TELEGRAM ---
+    telegramChatId: raw.telegramChatId ?? null,
+    // --- FIN NUEVO CAMPO TELEGRAM ---
 
     urbanizacion: raw.urbanizacion ?? null,
     sirens: Array.isArray(raw.sirens) ? raw.sirens : [],
