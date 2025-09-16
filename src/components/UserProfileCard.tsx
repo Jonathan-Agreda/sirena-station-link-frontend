@@ -6,6 +6,7 @@ import { MeResponse } from "@/services/auth";
 import { getTelegramLink } from "@/services/users";
 import { toast } from "sonner";
 import { Send, CheckCircle2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query"; // <-- 1. IMPORTAR EL CLIENTE DE REACT QUERY
 
 type Props = {
   user: MeResponse;
@@ -16,33 +17,42 @@ export default function UserProfileCard({ user, onOpenContactModal }: Props) {
   // Estado y lógica de Telegram
   const [isLinking, setIsLinking] = useState(false);
 
+  // --- INICIO DE CAMBIOS ---
+  const queryClient = useQueryClient(); // <-- 2. OBTENER EL QUERY CLIENT
+
   const handleLinkTelegram = async () => {
     setIsLinking(true);
     try {
       const { link } = await getTelegramLink();
       window.open(link, "_blank");
+
+      // 3. INVALIDAR LA CACHÉ
+      // Le decimos a React Query que los datos de "me" están obsoletos.
+      // Cuando el usuario vuelva a enfocar esta pestaña, React Query
+      // buscará los datos frescos automáticamente.
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+
       toast.success(
         'Se abrió una pestaña para vincular Telegram. Presiona "Start".',
         {
+          // 4. MENSAJE DE TOAST ACTUALIZADO
+          // Ya no necesita cerrar sesión.
           description:
-            "Deberás cerrar sesión y volver a entrar para ver el cambio reflejado aquí.",
+            "Al regresar a esta pestaña, tu estado se actualizará automáticamente.",
           duration: 8000,
         }
       );
     } catch (error: unknown) {
-      // <-- CORRECCIÓN: De 'any' a 'unknown'
-      // --- INICIO MANEJO DE ERROR TYPE-SAFE ---
-      let errorMessage = "No se pudo generar el link."; // Mensaje por defecto
+      let errorMessage = "No se pudo generar el link.";
       if (error instanceof Error) {
-        // Ahora es seguro acceder a error.message porque sabemos que es una instancia de Error
         errorMessage = error.message;
       }
       toast.error(errorMessage);
-      // --- FIN MANEJO DE ERROR TYPE-SAFE ---
     } finally {
       setIsLinking(false);
     }
   };
+  // --- FIN DE CAMBIOS ---
 
   return (
     // Añadimos gap-4 para separar las secciones de perfil y notificaciones
@@ -130,7 +140,10 @@ export default function UserProfileCard({ user, onOpenContactModal }: Props) {
           <button
             onClick={handleLinkTelegram}
             disabled={isLinking}
-            className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            // --- INICIO CAMBIO DE ESTILO ---
+            // Usamos el color --brand-primary de tu sistema, como en el diálogo de login
+            className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white bg-[var(--brand-primary,#e11d48)] hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            // --- FIN CAMBIO DE ESTILO ---
           >
             <Send size={16} />
             <span>
