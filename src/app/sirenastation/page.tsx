@@ -14,6 +14,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useSirenTimerStore } from "@/store/sirenTimer";
 import UpdateContactModal from "@/components/modals/UpdateContactModal";
 import { updateMyContact } from "@/services/users";
+import UserProfileCard from "@/components/UserProfileCard"; // <-- NUEVA IMPORTACIÓN
 
 /* ---------- Tipo extendido para lo que puede traer el socket ---------- */
 type SirenState = {
@@ -286,74 +287,15 @@ export default function SirenaStationPage() {
                   )}
                 </div>
 
-                {/* ─── Perfil ─── */}
-                <div className="order-2 md:order-1 rounded-xl border p-4 grid gap-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm opacity-70">Tu perfil</p>
-                    <button
-                      onClick={() => setOpenModal(true)}
-                      className="cursor-pointer rounded-lg border border-neutral-300 dark:border-white/10 
-             px-3 py-1.5 text-sm 
-             bg-white text-neutral-700 hover:bg-neutral-100 
-             dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800
-             transition"
-                      title="Actualizar email, cédula y celular"
-                    >
-                      Actualizar datos
-                    </button>
-                  </div>
-
-                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                    <div className="grid grid-cols-[90px_1fr] gap-2">
-                      <dt className="opacity-60">Usuario</dt>
-                      <dd className="font-medium break-words">
-                        {user.firstName && user.lastName
-                          ? `${user.firstName} ${user.lastName}`
-                          : user.username || "—"}
-                      </dd>
-                    </div>
-
-                    <div className="grid grid-cols-[90px_1fr] gap-2">
-                      <dt className="opacity-60">Email</dt>
-                      <dd
-                        className="font-medium truncate"
-                        title={user.email || "—"}
-                      >
-                        {user.email || "—"}
-                      </dd>
-                    </div>
-
-                    <div className="grid grid-cols-[90px_1fr] gap-2">
-                      <dt className="opacity-60">Etapa</dt>
-                      <dd className="font-medium">{user.etapa || "—"}</dd>
-                    </div>
-
-                    <div className="grid grid-cols-[90px_1fr] gap-2">
-                      <dt className="opacity-60">Manzana</dt>
-                      <dd className="font-medium">{user.manzana || "—"}</dd>
-                    </div>
-
-                    <div className="grid grid-cols-[90px_1fr] gap-2">
-                      <dt className="opacity-60">Villa</dt>
-                      <dd className="font-medium">{user.villa || "—"}</dd>
-                    </div>
-
-                    <div className="grid grid-cols-[90px_1fr] gap-2">
-                      <dt className="opacity-60">Rol</dt>
-                      <dd className="font-medium">{user.role}</dd>
-                    </div>
-
-                    <div className="grid grid-cols-[90px_1fr] gap-2">
-                      <dt className="opacity-60">Cédula</dt>
-                      <dd className="font-medium">{user.cedula || "—"}</dd>
-                    </div>
-
-                    <div className="grid grid-cols-[90px_1fr] gap-2">
-                      <dt className="opacity-60">Celular</dt>
-                      <dd className="font-medium">{user.celular || "—"}</dd>
-                    </div>
-                  </dl>
+                {/* --- INICIO BLOQUE MODIFICADO --- */}
+                {/* ─── Perfil y Notificaciones (Nuevo Componente) ─── */}
+                <div className="order-2 md:order-1">
+                  <UserProfileCard
+                    user={user}
+                    onOpenContactModal={() => setOpenModal(true)}
+                  />
                 </div>
+                {/* --- FIN BLOQUE MODIFICADO --- */}
               </div>
 
               {/* Imagen */}
