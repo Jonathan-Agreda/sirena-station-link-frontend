@@ -189,6 +189,18 @@ export default function UsuariosTab() {
                   {u.villa && <span>· villa {u.villa}</span>}
                   <span>· alícuota {u.alicuota ? "✓" : "✕"}</span>
                   <span>· sesiones {u.sessions}</span>
+                  <span>
+                    · notificaciones{" "}
+                    {u.telegramChatId ? (
+                      <span className="text-green-600 dark:text-green-400 font-bold">
+                        ✓
+                      </span>
+                    ) : (
+                      <span className="text-red-500 dark:text-red-400 font-bold">
+                        ✕
+                      </span>
+                    )}
+                  </span>
                 </div>
               </div>
               <div className="flex items-center gap-2">

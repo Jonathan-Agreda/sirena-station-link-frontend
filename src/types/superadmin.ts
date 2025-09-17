@@ -58,6 +58,7 @@ export type User = {
   sessionLimit?: number | null; // Valor crudo desde backend
   sessions: number; // Valor efectivo (regla por rol)
   activo: boolean;
+  telegramChatId?: string | null;
 };
 
 // ---------- Asignaciones ----------

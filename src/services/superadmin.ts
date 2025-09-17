@@ -136,6 +136,7 @@ function mapUser(x: ApiObj): User {
       typeof pick(x, "activo") === "boolean"
         ? Boolean(pick(x, "activo"))
         : true,
+    telegramChatId: toStr(pick(x, "telegramChatId")),
   };
 }
 
