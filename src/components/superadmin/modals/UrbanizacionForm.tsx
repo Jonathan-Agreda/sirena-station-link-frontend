@@ -5,6 +5,7 @@ import Modal from "./Modal";
 export type UrbanizacionFormValues = {
   name: string;
   maxUsers?: number | null;
+  telegramGroupId?: string | null; // Nuevo campo opcional
 };
 
 export default function UrbanizacionForm({
@@ -24,6 +25,7 @@ export default function UrbanizacionForm({
 }) {
   const [name, setName] = useState("");
   const [maxUsers, setMaxUsers] = useState<string>("");
+  const [telegramGroupId, setTelegramGroupId] = useState<string>(""); // Estado para el nuevo campo
 
   useEffect(() => {
     setName(initial?.name ?? "");
@@ -32,6 +34,7 @@ export default function UrbanizacionForm({
         ? String(initial.maxUsers)
         : ""
     );
+    setTelegramGroupId(initial?.telegramGroupId ?? ""); // Inicializar el campo
   }, [initial, open]);
 
   const submit = (e: React.FormEvent) => {
@@ -43,6 +46,7 @@ export default function UrbanizacionForm({
     onSubmit({
       name: trimmed,
       maxUsers: Number.isFinite(max) ? max : undefined,
+      telegramGroupId: telegramGroupId.trim() || undefined, // Solo enviar si hay valor
     });
   };
 
@@ -96,6 +100,24 @@ export default function UrbanizacionForm({
             placeholder="120"
             className="w-full rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-950 px-3 py-2 text-sm outline-none"
           />
+        </div>
+        <div>
+          <label className="block text-xs mb-1 text-neutral-600 dark:text-neutral-400">
+            Telegram Group ID (opcional)
+          </label>
+          <input
+            value={telegramGroupId}
+            onChange={(e) =>
+              setTelegramGroupId(e.target.value.replace(/[^\d\-]/g, ""))
+            }
+            inputMode="numeric"
+            placeholder="Ej: -1001234567890"
+            className="w-full rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-950 px-3 py-2 text-sm outline-none"
+          />
+          <span className="block text-xs mt-1 text-neutral-400">
+            Ingresa el ID del grupo de Telegram donde se enviarán las
+            notificaciones. Si lo dejas vacío, no se enviarán avisos.
+          </span>
         </div>
       </form>
     </Modal>

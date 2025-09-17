@@ -89,6 +89,7 @@ function mapUrbanization(x: ApiObj): Urbanizacion {
     maxUsers: toNum(pick(x, "maxUsers", "max_users")),
     createdAt: toStr(pick(x, "createdAt", "created_at")),
     updatedAt: toStr(pick(x, "updatedAt", "updated_at")),
+    telegramGroupId: toStr(pick(x, "telegramGroupId")),
   };
 }
 

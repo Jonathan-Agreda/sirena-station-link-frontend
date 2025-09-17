@@ -7,6 +7,7 @@ export type Urbanizacion = {
   maxUsers: number;
   createdAt: string;
   updatedAt: string;
+  telegramGroupId?: string | null;
 };
 
 // ---------- Sirenas ----------
