@@ -289,7 +289,7 @@ export default function FirstPasswordDialog({
                     id="telegram-opt-in"
                     checked={wantsTelegram}
                     onChange={(e) => setWantsTelegram(e.target.checked)}
-                    className="h-4 w-4 rounded border-neutral-400 dark:border-neutral-500 text-[var(--brand-primary)] focus:ring-[var(--brand-primary)] bg-transparent"
+                    className="h-4 w-4 rounded border-neutral-400 dark:border-neutral-500 text-[var(--brand-primary)] focus:ring-[var(--brand-primary)] bg-transparent cursor-pointer"
                   />
                   <span className="text-sm text-neutral-700 dark:text-neutral-300">
                     Deseo recibir notificaciones por Telegram
