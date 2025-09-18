@@ -26,7 +26,6 @@ export async function updateMyContact(
   return res;
 }
 
-// --- INICIO NUEVA FUNCIÓN ---
 /**
  * Llama al backend para generar un link de vinculación de Telegram
  * para el usuario actualmente logueado.
@@ -43,4 +42,19 @@ export const getTelegramLink = async (): Promise<{ link: string }> => {
     throw new Error("No se pudo generar el link de Telegram.");
   }
 };
-// --- FIN NUEVA FUNCIÓN ---
+
+/**
+ * Desvincula Telegram del usuario actual.
+ * Elimina el chatId en el backend y desactiva notificaciones.
+ */
+export const unlinkTelegram = async (): Promise<{ ok: boolean }> => {
+  try {
+    const response = await api.delete("/residents/me/telegram", {
+      withCredentials: true,
+    });
+    return response.data as { ok: boolean };
+  } catch (error) {
+    console.error("Error desvinculando Telegram:", error);
+    throw new Error("No se pudo desactivar Telegram.");
+  }
+};
