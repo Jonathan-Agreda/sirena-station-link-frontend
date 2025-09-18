@@ -182,7 +182,7 @@ export default function ActivationLogsTable() {
   }, [rows, page, isUnfiltered]);
   // ==========================================================================
 
-  // Exportar Excel
+  // Exportar Excel (sin Razón ni IP)
   const exportExcel = async () => {
     try {
       const allData = await fetchActivationLogs({
@@ -197,13 +197,11 @@ export default function ActivationLogsTable() {
         "Sirena",
         "Usuario",
         "Nombre",
-        "Cedula",
+        "Cédula",
         "Celular",
         "E/M/V",
         "Acción",
         "Resultado",
-        "Razón",
-        "IP",
       ];
       worksheet.addRow(header);
       allData.data.forEach((r) => {
@@ -219,8 +217,6 @@ export default function ActivationLogsTable() {
           }`,
           r.action,
           r.result,
-          r.reason ?? "-",
-          r.ip ?? "-",
         ]);
       });
       const buf = await workbook.xlsx.writeBuffer();
@@ -326,15 +322,13 @@ export default function ActivationLogsTable() {
                 <th className="px-3 py-2 text-left">E/M/V</th>
                 <th className="px-3 py-2 text-left">Acción</th>
                 <th className="px-3 py-2 text-left">Resultado</th>
-                <th className="px-3 py-2 text-left">Razón</th>
-                <th className="px-3 py-2 text-left">IP</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 [...Array(8)].map((_, i) => (
                   <tr key={i}>
-                    <td className="px-3 py-2" colSpan={11}>
+                    <td className="px-3 py-2" colSpan={9}>
                       <Skeleton className="h-5 w-full" />
                     </td>
                   </tr>
@@ -342,7 +336,7 @@ export default function ActivationLogsTable() {
               ) : rows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={11}
+                    colSpan={9}
                     className="px-3 py-6 text-center text-neutral-500"
                   >
                     Sin resultados
@@ -390,8 +384,6 @@ export default function ActivationLogsTable() {
                         <Badge text="EXECUTED" color="bg-blue-600" />
                       )}
                     </td>
-                    <td className="px-3 py-2">{r.reason ?? "-"}</td>
-                    <td className="px-3 py-2">{r.ip ?? "-"}</td>
                   </tr>
                 ))
               )}
