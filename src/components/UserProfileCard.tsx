@@ -146,12 +146,12 @@ export default function UserProfileCard({ user, onOpenContactModal }: Props) {
             </div>
             <button
               onClick={() => setConfirmOpen(true)}
-              disabled={unlinkTelegramMutation.isLoading}
+              disabled={unlinkTelegramMutation.isPending}
               className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               <BellOff size={16} />
               <span>
-                {unlinkTelegramMutation.isLoading
+                {unlinkTelegramMutation.isPending
                   ? "Desactivando..."
                   : "Desactivar notificaciones"}
               </span>
@@ -163,7 +163,7 @@ export default function UserProfileCard({ user, onOpenContactModal }: Props) {
               message="¿Seguro que quieres desactivar las notificaciones de Telegram? Podrás volver a activarlas cuando quieras."
               confirmText="Sí, desactivar"
               cancelText="Cancelar"
-              loading={unlinkTelegramMutation.isLoading}
+              loading={unlinkTelegramMutation.isPending}
               onConfirm={handleUnlinkTelegram}
               onClose={() => setConfirmOpen(false)}
             />
