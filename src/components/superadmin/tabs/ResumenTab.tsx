@@ -6,12 +6,19 @@ import { useSuperAdminStore } from "@/store/superadmin";
 import {
   sa_listSirensByUrbanizacion,
   sa_listUsersByUrbanizacion,
-  sa_listAssignmentsByUrbanizacion,
+  sa_listAssignmentsByUrbanizacionFast,
   Paginated,
 } from "@/services/superadmin";
-import type { Siren, User, Assignment } from "@/types/superadmin";
+import type { Siren, User } from "@/types/superadmin";
 import CardShell from "../CardShell";
 import MetricCard from "../MetricCard";
+
+/**
+ * Tutoría Senior:
+ * - Ahora el dato de "Asignaciones" usa el endpoint rápido (sa_listAssignmentsByUrbanizacionFast).
+ * - Esto mejora el tiempo de carga y reduce la carga en el backend.
+ * - El resto de métricas mantienen el tipado estricto y la estructura original.
+ */
 
 export default function ResumenTab() {
   const { selectedUrbanizacionId } = useSuperAdminStore();
@@ -44,17 +51,13 @@ export default function ResumenTab() {
     enabled: !!selectedUrbanizacionId,
   });
 
+  // 🚀 Optimizado: usa el endpoint rápido para asignaciones
   const { data: aMeta } = useQuery({
     queryKey: ["sa", "assignments-meta", selectedUrbanizacionId],
     queryFn: () =>
       selectedUrbanizacionId
-        ? sa_listAssignmentsByUrbanizacion(selectedUrbanizacionId)
-        : Promise.resolve({
-            items: [],
-            total: 0,
-            page: 1,
-            pageSize: 1,
-          } as Paginated<Assignment>),
+        ? sa_listAssignmentsByUrbanizacionFast(selectedUrbanizacionId)
+        : Promise.resolve([]),
     enabled: !!selectedUrbanizacionId,
   });
 
@@ -79,7 +82,7 @@ export default function ResumenTab() {
         />
         <MetricCard
           label="Asignaciones"
-          value={aMeta?.total ?? 0}
+          value={Array.isArray(aMeta) ? aMeta.length : 0}
           icon={<Link2 className="size-4" />}
         />
       </div>

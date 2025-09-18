@@ -13,7 +13,7 @@ import { useSuperAdminStore } from "@/store/superadmin";
 import {
   sa_listUsersByUrbanizacion,
   sa_listSirensByUrbanizacion,
-  sa_listAssignmentsByUrbanizacion,
+  sa_listAssignmentsByUrbanizacionFast,
   sa_createAssignment,
   sa_deleteAssignment,
 } from "@/services/superadmin";
@@ -55,12 +55,13 @@ export default function AsignacionesTab() {
     staleTime: 10_000,
   });
 
+  // 🚀 Optimizado: solo un request para todas las asignaciones de la urbanización
   const assignQ = useQuery({
     queryKey: ["sa", "assignments", selectedUrbanizacionId],
     queryFn: () =>
       selectedUrbanizacionId
-        ? sa_listAssignmentsByUrbanizacion(selectedUrbanizacionId)
-        : Promise.resolve({ items: [], total: 0, page: 1, pageSize: 100 }),
+        ? sa_listAssignmentsByUrbanizacionFast(selectedUrbanizacionId)
+        : Promise.resolve([]),
     enabled: !!selectedUrbanizacionId,
     refetchOnMount: "always",
   });
@@ -98,7 +99,7 @@ export default function AsignacionesTab() {
   // Mapeos
   const users = usersQ.data?.items ?? [];
   const sirens = sirensQ.data?.items ?? [];
-  const assignments = assignQ.data?.items ?? [];
+  const assignments = assignQ.data ?? [];
 
   const userById = useMemo(() => {
     const m = new Map<string, User>();

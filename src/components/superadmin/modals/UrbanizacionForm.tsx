@@ -61,7 +61,7 @@ export default function UrbanizacionForm({
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="px-3 py-1.5 rounded-xl border border-neutral-300 dark:border-neutral-700 text-sm bg-white dark:bg-neutral-900 cursor-pointer disabled:cursor-not-allowed"
+            className="px-3 py-1.5 rounded-xl border border-neutral-300 dark:border-neutral-700 text-sm bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 cursor-pointer disabled:cursor-not-allowed"
           >
             Cancelar
           </button>

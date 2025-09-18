@@ -185,3 +185,11 @@ export type AssignmentBulkDeleteResult = {
   processed: number;
   report: AssignmentBulkDeleteItem[];
 };
+
+/* ------------------ Urbanization Sessions ------------------ */
+export type UrbanizationSession = {
+  userId: string;
+  username: string;
+  email: string;
+  sessions: ActiveSession[];
+};

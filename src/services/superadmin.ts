@@ -1,4 +1,3 @@
-// src/services/superadmin.ts
 import api from "@/lib/api";
 import type {
   Urbanizacion,
@@ -235,6 +234,16 @@ export async function sa_listSirensByUrbanizacion(
 
 /* -------- ASIGNACIONES -------- */
 
+// 🚀 Optimizado: obtiene todas las asignaciones de una urbanización en un solo request
+export async function sa_listAssignmentsByUrbanizacionFast(
+  urbanizacionId: string
+): Promise<Assignment[]> {
+  const { data } = await api.get(`/assignments/urbanization/${urbanizacionId}`);
+  if (!Array.isArray(data)) return [];
+  return data.map((i) => mapAssignment(asObj(i)));
+}
+
+// Mantén el anterior para compatibilidad, pero usa el nuevo en los tabs
 export async function sa_listAssignmentsByUrbanizacion(
   urbanizacionId: string
 ): Promise<Paginated<Assignment>> {
@@ -335,6 +344,33 @@ export async function sa_downloadAssignmentsTemplate(): Promise<Blob> {
 
 /* ------------------ SESIONES ------------------ */
 
+// 🚀 Optimizado: obtiene todas las sesiones activas de los usuarios de una urbanización en un solo request
+export type UrbanizationSession = {
+  userId: string;
+  username: string;
+  email: string;
+  sessions: ActiveSession[];
+};
+
+export async function sa_listSessionsByUrbanizacion(
+  urbanizacionId: string
+): Promise<UrbanizationSession[]> {
+  const { data } = await api.get(
+    `/users/urbanization/${urbanizacionId}/sessions`
+  );
+  if (!Array.isArray(data)) return [];
+  // Si necesitas mapear las sesiones internas, puedes hacerlo aquí
+  return data.map((item) => ({
+    userId: toStr(item.userId),
+    username: toStr(item.username),
+    email: toStr(item.email),
+    sessions: Array.isArray(item.sessions)
+      ? item.sessions.map((s: unknown) => mapActiveSession(asObj(s)))
+      : [],
+  }));
+}
+
+// Mantén el anterior para compatibilidad, pero usa el nuevo en los tabs
 export async function sa_listActiveSessionsByUrbanizacion(
   urbanizacionId: string
 ): Promise<Paginated<ActiveSession>> {

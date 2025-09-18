@@ -5,13 +5,12 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Clock, Search, LogOut, Loader2 } from "lucide-react";
 import { useSuperAdminStore } from "@/store/superadmin";
 import {
+  sa_listSessionsByUrbanizacion,
   sa_listUsersByUrbanizacion,
-  sa_listActiveSessionsByUrbanizacion,
   sa_terminateUserSession,
   sa_terminateAllSessionsByUrbanizacion,
-  Paginated,
 } from "@/services/superadmin";
-import type { User, ActiveSession } from "@/types/superadmin";
+import type { User, UrbanizationSession } from "@/types/superadmin";
 import CardShell from "../CardShell";
 import { useMiniToasts } from "../hooks/useMiniToasts";
 
@@ -25,16 +24,23 @@ function formatDateTime(ms: number | string | null | undefined) {
   }
 }
 
-type SessionWithInternalId = ActiveSession & {
-  internalUserId: string | null;
-  userDisplay: string;
-};
-
 export default function SesionesTab() {
   const { selectedUrbanizacionId } = useSuperAdminStore();
   const [q, setQ] = useState("");
   const toasts = useMiniToasts();
 
+  // 🚀 Optimizado: solo un request para todas las sesiones de la urbanización
+  const sessionsQ = useQuery({
+    queryKey: ["sa", "sessions", selectedUrbanizacionId],
+    queryFn: () =>
+      selectedUrbanizacionId
+        ? sa_listSessionsByUrbanizacion(selectedUrbanizacionId)
+        : Promise.resolve([]),
+    enabled: !!selectedUrbanizacionId,
+    refetchOnMount: "always",
+  });
+
+  // Para mostrar nombre completo del usuario, obtenemos el listado de usuarios
   const usersQ = useQuery({
     queryKey: ["sa", "users", selectedUrbanizacionId],
     queryFn: () =>
@@ -45,24 +51,9 @@ export default function SesionesTab() {
             total: 0,
             page: 1,
             pageSize: 300,
-          } as Paginated<User>),
+          }),
     enabled: !!selectedUrbanizacionId,
     staleTime: 10_000,
-  });
-
-  const sessionsQ = useQuery({
-    queryKey: ["sa", "sessions", selectedUrbanizacionId],
-    queryFn: () =>
-      selectedUrbanizacionId
-        ? sa_listActiveSessionsByUrbanizacion(selectedUrbanizacionId)
-        : Promise.resolve({
-            items: [],
-            total: 0,
-            page: 1,
-            pageSize: 50,
-          } as Paginated<ActiveSession>),
-    enabled: !!selectedUrbanizacionId,
-    refetchOnMount: "always",
   });
 
   // --- Mutación para cerrar sesión individual ---
@@ -95,19 +86,28 @@ export default function SesionesTab() {
     sessionsQ.isFetching;
 
   const users = usersQ.data?.items ?? [];
-  const sessions = sessionsQ.data?.items ?? [];
+  const sessions = sessionsQ.data ?? [];
 
   // Mapea sesiones y agrega el id interno de usuario
-  const sessionsWithInternalId: SessionWithInternalId[] = useMemo(() => {
-    const userByKC = new Map<string, User>();
+  const sessionsWithInternalId = useMemo(() => {
+    const userByEmail = new Map<string, User>();
+    const userByUsername = new Map<string, User>();
+    const userById = new Map<string, User>();
     for (const u of users) {
-      if (u.keycloakId) userByKC.set(u.keycloakId, u);
+      if (u.email) userByEmail.set(u.email, u);
+      if (u.username) userByUsername.set(u.username, u);
+      userById.set(u.id, u);
     }
-    return sessions.map((sess) => ({
-      ...sess,
-      internalUserId: userByKC.get(sess.userId)?.id ?? null,
-      userDisplay: userByKC.get(sess.userId)?.name || sess.username,
-    }));
+    return sessions.flatMap((sess: UrbanizationSession) =>
+      (sess.sessions ?? []).map((s) => ({
+        ...s,
+        internalUserId: userById.get(sess.userId)?.id ?? null,
+        userDisplay:
+          userById.get(sess.userId)?.name ||
+          userByUsername.get(sess.username)?.name ||
+          sess.username,
+      }))
+    );
   }, [sessions, users]);
 
   const filtered = useMemo(() => {
