@@ -1,49 +1,67 @@
-# ==============================================================================
-# Etapa 1: "Builder" - Instala dependencias y construye la aplicación
-# ==============================================================================
-FROM node:18-alpine AS builder
 
-# Establece el directorio de trabajo dentro del contenedor
+# syntax=docker/dockerfile:1
+
+# ============================================================
+# ETAPA 1: Instalacion de dependencias
+# ============================================================
+FROM node:22-alpine AS deps
+
 WORKDIR /app
 
-# Copia los archivos de definición de dependencias
-# Esto aprovecha el caché de Docker. Si no cambian, no se reinstala todo.
-COPY package*.json ./
+COPY package.json package-lock.json ./
 
-# Instala todas las dependencias (incluyendo las de desarrollo para el build)
-RUN npm install
+RUN npm ci
 
-# Copia el resto del código fuente de la aplicación
+# ============================================================
+# ETAPA 2: Compilacion de Next.js
+# ============================================================
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+COPY --from=deps /app/node_modules ./node_modules
+
 COPY . .
 
-# Ejecuta el script de construcción de Next.js
-RUN npm run build
+RUN --mount=type=secret,id=production_env,target=/app/.env.production,required=true \
+    npm run build
 
-# ==============================================================================
-# Etapa 2: "Runner" - Prepara la imagen final de producción
-# ==============================================================================
-FROM node:18-alpine AS runner
+# ============================================================
+# ETAPA 3: Imagen final de produccion
+# ============================================================
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 
-# Establece el entorno a producción
 ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
 
-# Crea un usuario y grupo no-root para mayor seguridad
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 --ingroup nodejs nextjs
 
-# Copia los artefactos de la compilación desde la etapa "builder"
-# Se usa la salida "standalone" de Next.js para una imagen mínima.
 COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Cambia al usuario no-root
+COPY --from=builder /app/.next/standalone ./
+
+COPY --from=builder /app/.next/static ./.next/static
+
+# Configuracion publica de produccion: solo lectura
+RUN if [ -f /app/.env.production ]; then \
+        chown root:root /app/.env.production && \
+        chmod 444 /app/.env.production; \
+    fi
+
+# Directorio de cache con permisos de escritura
+RUN mkdir -p /app/.next/cache \
+    && chown -R nextjs:nodejs /app/.next/cache
+
 USER nextjs
 
-# Expone el puerto en el que corre la aplicación Next.js
 EXPOSE 3000
 
-# El comando para iniciar el servidor de Next.js en producción
 CMD ["node", "server.js"]
